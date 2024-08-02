@@ -96,7 +96,12 @@ def wayfire_commands(command):
         alpha = float(command.split()[-1])
         sock.set_view_alpha(id, alpha)
 
+def watch_events():
+    sock.watch()
 
+    while True:
+        msg = sock.read_message()
+        print(msg)
 
 
 
