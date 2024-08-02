@@ -40,8 +40,9 @@ def wayfire_commands(command):
     if "next workspace" in command:
         utils.go_next_workspace()
 
-    if "set fullscreen" == command:
-        utils.fullscreen_focused()
+    if "fullscreen view" in command:
+        id = int(command.split()[-1])
+        sock.set_view_fullscreen(id)
 
     if "get view info" in command:
         id = int(command.split()[-1])
@@ -76,7 +77,25 @@ def wayfire_commands(command):
     if "close view" in command:
         id = int(command.split()[-1])
         sock.close_view(id)
-        
+
+    if "minimize view" in command:
+        id = int(command.split()[2])
+        status = command.split()[3]
+        if status == "true":
+            status = True
+        if status == "false":
+            status = False
+        sock.set_view_minimized(id, status)
+
+    if "maximize view" in command:
+        id = int(command.split()[-1])
+        utils.maximize(id)
+
+    if "set view alpha" in command:
+        id = int(command.split()[3])
+        alpha = float(command.split()[-1])
+        sock.set_view_alpha(id, alpha)
+
 
 
 
