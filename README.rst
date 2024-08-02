@@ -38,6 +38,7 @@ To use wfctl, run:
     minimize view       minimize a view, wfctl minimize view {view_id} {true/false}.
     maximize            Maximize a view from a given id.
     set view alpha      Set view transparency, wfctl set view alpha {view_id} {0.4}.
+    configure device    Configure a device input from a give ID, wfctl configure device {device_id} {enable/disable}
     -m                  watch wayfire events
 
 

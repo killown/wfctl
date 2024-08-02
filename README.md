@@ -18,4 +18,6 @@ wayfire command line tool
     minimize view       minimize a view, wfctl minimize view {view_id} {true/false}.
     maximize            Maximize a view from a given id.
     set view alpha      Set view transparency, wfctl set view alpha {view_id} {0.4}.
+    list input          Lists all input devices currently available in the Wayfire environment
+    configure device    Configure a device input from a give ID, wfctl configure device {device_id} {enable/disable}
     -m                  watch wayfire events

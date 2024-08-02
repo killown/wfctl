@@ -1,3 +1,6 @@
+from wayfire.ipc import WayfireSocket 
+sock = WayfireSocket()
+
 def workspace_to_coordinates(workspace_number, grid_width):
     """
     Convert a workspace number to coordinates in the grid.
@@ -12,3 +15,10 @@ def workspace_to_coordinates(workspace_number, grid_width):
     y = index // grid_width
     return {"x": x, "y": y}
 
+def find_device_id(name_or_id_or_type):
+    sock = WayfireSocket()
+    devices = sock.list_input_devices()
+    for dev in devices:
+        if dev['name'] == name_or_id_or_type or str(dev['id']) == name_or_id_or_type or dev['type'] == name_or_id_or_type:
+            return int(dev['id'])
+    return None

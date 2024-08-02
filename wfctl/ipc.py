@@ -1,7 +1,7 @@
 from wayfire.ipc import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 import json
-from wfctl.utils import workspace_to_coordinates
+from wfctl.utils import workspace_to_coordinates, find_device_id
 sock = WayfireSocket()
 utils = WayfireUtils(sock)
 
@@ -95,6 +95,25 @@ def wayfire_commands(command):
         id = int(command.split()[3])
         alpha = float(command.split()[-1])
         sock.set_view_alpha(id, alpha)
+
+    if "list inputs" in command:
+        s = sock.list_input_devices()
+        formatted_output = json.dumps(s, indent=4)
+        print(formatted_output)
+
+    if "configure device" in command:
+        status = command.split()[-1]
+        device_id = command.split()[2]
+        print(device_id)
+        if status == "enable":
+            status = True
+        if status == "disable":
+            status = False
+        if type(status) == bool:
+            device_id = find_device_id(device_id)
+            print(type(device_id))
+            sock.configure_input_device(device_id, status)
+
 
 def watch_events():
     sock.watch()

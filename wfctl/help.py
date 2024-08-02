@@ -46,6 +46,10 @@ def usage():
 
     subparsers.add_parser("-m", help="watch wayfire IPC events")
 
+    subparsers.add_parser("list inputs", help="Lists all input devices currently available in the Wayfire environment")
+    
+    subparsers.add_parser("configure device", help="Configure a device input from a give ID, wfctl configure device {device_id} {enable/disable}")
+
     
     args = parser.parse_args()
     
