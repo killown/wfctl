@@ -16,7 +16,7 @@ def usage():
     subparsers.add_parser("get focused view", help="Get the currently focused view.")
     subparsers.add_parser("get focused workspace", help="Get the currently focused workspace.")
     subparsers.add_parser("next workspace", help="Switch to the next workspace.")
-    subparsers.add_parser("set fullscreen", help="Set the currently focused view to fullscreen.")
+    subparsers.add_parser("fullscreen view", help="Set fullscreen the view from the given id.")
     
     get_view_info_parser = subparsers.add_parser("get view info", help="Get information about a specific view using a given {view_id}.")
     get_view_info_parser.add_argument("view_id", type=int, help="The ID of the view to get information about.")
