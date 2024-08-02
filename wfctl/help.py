@@ -44,6 +44,7 @@ def usage():
     set_view_alpha_parser.add_argument("view_id", type=int, help="The ID of the view to set alpha.")
     set_view_alpha_parser.add_argument("alpha", type=float, help="Float number...")
 
+    subparsers.add_parser("-m", help="watch wayfire IPC events")
 
     
     args = parser.parse_args()
