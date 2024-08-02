@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: wfctl
-Version: 0.1.0
-Summary: A command-line tool for interacting with Wayfire.
-Home-page: https://github.com/killown/wfctl
-Author: killown
-Author-email: systemofdown@gmail.com
-License-File: LICENSE
-Requires-Dist: wayfire
