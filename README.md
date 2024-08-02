@@ -1,4 +1,5 @@
 # wfctl
+
 wayfire command line tool
 
     list views          List all views currently available.
@@ -9,7 +10,7 @@ wayfire command line tool
     get focused workspace
                         Get the currently focused workspace.
     next workspace      Switch to the next workspace.
-    set fullscreen      Set the currently focused view to fullscreen.
+    fullscreen view     Set a view fullscreen from a given id.
     get view info       Get information about a specific view using a given {view_id}.
     resize view         Resize a specific view, wfctl resize view {view_id} width height.
     move view           Move a specific view, wfctl move view {view_id} x-coordinate y-coordinate.
