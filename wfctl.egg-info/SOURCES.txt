@@ -1,0 +1,15 @@
+LICENSE
+README.md
+setup.py
+tests/__init__.py
+tests/test_ipc.py
+wfctl/__init__.py
+wfctl/ipc.py
+wfctl/main.py
+wfctl/utils.py
+wfctl.egg-info/PKG-INFO
+wfctl.egg-info/SOURCES.txt
+wfctl.egg-info/dependency_links.txt
+wfctl.egg-info/entry_points.txt
+wfctl.egg-info/requires.txt
+wfctl.egg-info/top_level.txt
