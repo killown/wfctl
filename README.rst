@@ -36,7 +36,7 @@ To use wfctl, run:
     move view           Move a specific view, wfctl move view {view_id} x-coordinate y-coordinate.
     close view          Close a view using a given {view_id}.
     minimize view       minimize a view, wfctl minimize view {view_id} {true/false}.
-    maximize            Maximize or restore a view.
+    maximize            Maximize a view from a given id.
     set view alpha      Set view transparency, wfctl set view alpha {view_id} {0.4}.
 
 Contributing

@@ -37,7 +37,7 @@ def usage():
     minimize_view_parser.add_argument("view_id", type=int, help="The ID of the view to minimize.")
     minimize_view_parser.add_argument("bool", type=int, help="if minimize then true except use false")
 
-    maximize_parser = subparsers.add_parser("maximize", help="Maximize or restore a view.")
+    maximize_parser = subparsers.add_parser("maximize", help="Maximize a view from a given id.")
     maximize_parser.add_argument("view_id", type=int, help="The ID of the view to maximize or restore.")
 
     set_view_alpha_parser = subparsers.add_parser("set view alpha", help="Set view transparency, wfctl set view alpha {view_id} {0.4}.")
