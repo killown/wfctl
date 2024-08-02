@@ -1,6 +1,6 @@
 import sys
 import json
-from wfctl.ipc import wayfire_commands
+from wfctl.ipc import wayfire_commands, watch_events
 from wfctl.help import usage
 
 def main():
@@ -8,8 +8,13 @@ def main():
         usage()
         sys.exit(1)
 
+    if "-m" in sys.argv:
+        watch_events()
+
+
     command = ' '.join(sys.argv[1:])
     wayfire_commands(command)
+    
 
 if __name__ == "__main__":
     main()
