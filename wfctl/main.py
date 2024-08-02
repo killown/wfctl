@@ -8,9 +8,7 @@ def main():
         sys.exit(1)
     
     command = ' '.join(sys.argv[1:])
-    response = wayfire_commands(command)
-    
-    print(json.dumps(response, indent=2))
+    wayfire_commands(command)
 
 if __name__ == "__main__":
     main()
