@@ -138,6 +138,43 @@ def wayfire_commands(command, format=None):
         print(all_options)
         sock.set_option_values(all_options)
 
+    if "get keyboard" in command:
+        layout = sock.get_option_value("input/xkb_layout")
+        variant = sock.get_option_value("input/xkb_variant")
+        model = sock.get_option_value("input/xkb_model")
+        options = sock.get_option_value("input/xkb_options")
+        xkb = {"layout":layout["value"], "variant":variant["value"], "model":model["value"], "options":options["value"]}
+        xkb =  json.dumps(xkb, indent=4)
+        print(xkb)
+
+    if "set keyboard" in command:
+        k = " ".join(command.split()[2:])
+        xkb_layout = None 
+        xkb_variant = None 
+        xkb_model = None 
+        xkb_options = None
+
+        if "layout:" in command:
+            xkb_layout = k.split("layout:")[1].split()[0]
+            print(xkb_layout)
+
+        if "variant:" in command:
+            xkb_variant = k.split("variant:")[1].split()[0]
+        if "model:" in command:
+            xkb_model = k.split("model:")[1].split()[0]
+
+        if "options:" in command:
+            xkb_options = k.split("options:")[1].split()[0]
+
+        if xkb_layout:
+            sock.set_option_values({"input/xkb_layout":xkb_layout})
+        if xkb_variant:
+            sock.set_option_values({"input/xkb_variant":xkb_variant})
+        if xkb_model:
+            sock.set_option_values({"input/xkb_model":xkb_model})
+        if xkb_options:
+            sock.set_option_values({"input/xkb_options":xkb_options})
+
 
 def watch_events():
     sock.watch()

@@ -53,6 +53,10 @@ def usage():
     subparsers.add_parser("get option", help="Get wayfire config value from a given option, wfctl get option section/option")
     
     subparsers.add_parser("set option", help="Set wayfire config value from the given options, wfctl set options section_1/option_1:value_1 section_2/option_2:value_2")
+    
+    subparsers.add_parser("get keyboard", help="Retrieve the current keyboard layout, variant, model and options.")
+    
+    subparsers.add_parser("set keyboard", help="Set the keyboard layout, variant, model and options.")
 
     
     args = parser.parse_args()
