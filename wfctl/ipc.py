@@ -11,6 +11,13 @@ def print_output(data, format="fancy_grid"):
     else:
         return data
 
+def extract_from_dict(s, command, max_len):
+    key = command.split()
+    # show a certain key instead of the whole dict
+    if len(key) > max_len:
+        return s[key[-1]]
+        
+
 def wayfire_commands(command, format=None):
     if "list views" in command:
         s = sock.list_views()
@@ -25,7 +32,7 @@ def wayfire_commands(command, format=None):
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)
     
-    if "switch workspace" in command:
+    if "set workspace" in command:
         workspace_number = int(command.split()[-1])
         grid_width = sock.get_focused_output()["workspace"]["grid_width"]
         coordinates = workspace_to_coordinates(workspace_number, grid_width)
@@ -33,11 +40,19 @@ def wayfire_commands(command, format=None):
     
     if "get focused output" in command:
         s = sock.get_focused_output()
+        key = extract_from_dict(s, command, 3)
+        if key:
+            print(key)
+            return
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)
     
     if "get focused view" in command:
         s = sock.get_focused_view()
+        key = extract_from_dict(s, command, 3)
+        if key:
+            print(key)
+            return
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)
     
@@ -52,12 +67,16 @@ def wayfire_commands(command, format=None):
         id = int(command.split()[-1])
         sock.set_view_fullscreen(id)
 
-    if "get view info" in command:
-        id = int(command.split()[-1])
+    if "get view" in command:
+        id = int(command.split()[2])
         try:
             s = sock.get_view(id)
         except:
             print("view not found")
+            return
+        key = extract_from_dict(s, command, 3)
+        if key:
+            print(key)
             return
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)

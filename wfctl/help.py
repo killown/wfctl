@@ -9,7 +9,7 @@ def usage():
     subparsers.add_parser("list views", help="List all views currently available.")
     subparsers.add_parser("list outputs", help="List all outputs connected to the system.")
     
-    switch_workspace_parser = subparsers.add_parser("switch workspace", help="Switch to a specific workspace.")
+    switch_workspace_parser = subparsers.add_parser("set workspace", help="Switch to a specific workspace.")
     switch_workspace_parser.add_argument("workspace_number", type=int, help="The workspace number to switch to.")
     
     subparsers.add_parser("get focused output", help="Get the currently focused output.")
