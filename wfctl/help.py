@@ -57,6 +57,9 @@ def usage():
     subparsers.add_parser("get keyboard", help="Retrieve the current keyboard layout, variant, model and options.")
     
     subparsers.add_parser("set keyboard", help="Set the keyboard layout, variant, model and options.")
+    
+    subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
+    subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
 
     
     args = parser.parse_args()

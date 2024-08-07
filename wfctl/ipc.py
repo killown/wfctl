@@ -1,7 +1,7 @@
 from wayfire.ipc import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 import json
-from wfctl.utils import format_output, workspace_to_coordinates, find_device_id, format_output
+from wfctl.utils import format_output, workspace_to_coordinates, find_device_id, format_output, enable_plugin, disable_plugin
 sock = WayfireSocket()
 utils = WayfireUtils(sock)
 
@@ -165,6 +165,14 @@ def wayfire_commands(command, format=None):
         xkb = {"layout":layout["value"], "variant":variant["value"], "model":model["value"], "options":options["value"]}
         xkb =  json.dumps(xkb, indent=4)
         print(xkb)
+
+    if "enable plugin" in command:
+        plugin_name = command.split()[-1]
+        enable_plugin(plugin_name)
+        
+    if "disable plugin" in command:
+        plugin_name = command.split()[-1]
+        disable_plugin(plugin_name)
 
     if "set keyboard" in command:
         k = " ".join(command.split()[2:])

@@ -44,3 +44,13 @@ def format_output(json_data, tablefmt="fancy_grid"):
     table = tabulate(table_data, headers=headers, tablefmt=tablefmt)
     return table
 
+
+def disable_plugin(plugin_name):
+    plugins = sock.get_option_value("core/plugins")["value"]
+    p = " ".join([i for i in plugins.split() if plugin_name not in i])
+    sock.set_option_values({"core/plugins": p})
+
+def enable_plugin(plugin_name):
+    plugins = sock.get_option_value("core/plugins")["value"]
+    p = plugins + " " +  plugin_name
+    sock.set_option_values({"core/plugins": p})
