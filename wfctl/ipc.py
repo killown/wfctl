@@ -1,7 +1,7 @@
 from wayfire.ipc import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 import json
-from wfctl.utils import format_output, workspace_to_coordinates, find_device_id, format_output, enable_plugin, disable_plugin
+from wfctl.utils import format_output, find_dicts_with_value, workspace_to_coordinates, find_device_id, set_output, enable_plugin, disable_plugin, status_plugin, install_wayfire_plugin
 sock = WayfireSocket()
 utils = WayfireUtils(sock)
 
@@ -20,8 +20,14 @@ def extract_from_dict(s, command, max_len):
 
 def wayfire_commands(command, format=None):
     if "list views" in command:
-        s = sock.list_views()
-        formatted_output = json.dumps(s, indent=4)
+        views = sock.list_views()
+        value = command.split()[-1]
+        result = find_dicts_with_value(views, value)
+        if result:
+            views = result
+            focused_id = sock.get_focused_view()["id"]
+            views = [view for view in views if view["id"]!=focused_id]
+        formatted_output = json.dumps(views, indent=4)
         if format is not None:
             print(format_output(str(formatted_output)))
         else:
@@ -64,8 +70,9 @@ def wayfire_commands(command, format=None):
         utils.go_next_workspace()
 
     if "fullscreen view" in command:
-        id = int(command.split()[-1])
-        sock.set_view_fullscreen(id)
+        id = int(command.split()[2])
+        state = command.split()[-1]
+        sock.set_view_fullscreen(id, state)
 
     if "get view" in command:
         id = int(command.split()[2])
@@ -173,6 +180,24 @@ def wayfire_commands(command, format=None):
     if "disable plugin" in command:
         plugin_name = command.split()[-1]
         disable_plugin(plugin_name)
+
+    if "reload plugin":
+        plugin_name = command.split()[-1]
+        disable_plugin(plugin_name)
+        enable_plugin(plugin_name)
+
+    if "status plugin" in command:
+        plugin_name = command.split()[-1]
+        status_plugin(plugin_name)
+
+    if "install plugin" in command:
+        plugin_url = command.split()[-1]
+        install_wayfire_plugin(plugin_url)
+
+    if "set output" in command:
+        output_name = command.split()[2]
+        status = command.split()[-1]
+        set_output(output_name, status)
 
     if "set keyboard" in command:
         k = " ".join(command.split()[2:])

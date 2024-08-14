@@ -1,6 +1,10 @@
 from wayfire.ipc import WayfireSocket 
 import json
 from tabulate import tabulate
+import os 
+import tempfile
+import subprocess
+
 sock = WayfireSocket()
 
 def workspace_to_coordinates(workspace_number, grid_width):
@@ -54,3 +58,39 @@ def enable_plugin(plugin_name):
     plugins = sock.get_option_value("core/plugins")["value"]
     p = plugins + " " +  plugin_name
     sock.set_option_values({"core/plugins": p})
+
+def set_output(output_name, status):
+    method = "output:{}/mode".format(output_name)
+    if status == "on":
+        status = "auto"
+    sock.set_option_values({method:status})
+
+def status_plugin(plugin_name):
+    status = plugin_name in sock.get_option_value("core/plugins")["value"].split()
+    if status:
+        print("plugin enabled")
+    else:
+        print("plugin disabled")
+
+def install_wayfire_plugin(github_url):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_name = github_url.rstrip('/').split('/')[-1]
+        repo_dir = os.path.join(temp_dir, repo_name)
+        subprocess.run(['git', 'clone', github_url, repo_dir], check=True)
+        os.chdir(repo_dir)
+        os.environ['PKG_CONFIG_PATH'] = '/usr/lib/wlroots/pkgconfig'
+        subprocess.run(['meson', 'setup', 'build', '--prefix=/usr'], check=True)
+        subprocess.run(['sudo', 'ninja', '-C', 'build', 'install'], check=True)
+        print("Plugin installed successfully.")
+
+def find_dicts_with_value(dict_list, value):
+    matches = []
+    for d in dict_list:
+        # Check top-level values
+        if any(value in str(v) for v in d.values()):
+            matches.append(d)
+        # Check nested dictionaries
+        for v in d.values():
+            if isinstance(v, dict) and any(value in str(sub_v) for sub_v in v.values()):
+                matches.append(d)
+    return matches
