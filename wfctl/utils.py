@@ -29,14 +29,26 @@ def find_device_id(name_or_id_or_type):
             return int(dev['id'])
     return None
 
+
+
 def flatten_json(data, parent_key=''):
     items = []
-    for k, v in data.items():
-        new_key = f"{parent_key}.{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_json(v, new_key).items())
-        else:
-            items.append((new_key, v))
+    
+    if isinstance(data, dict):
+        for k, v in data.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_json(v, new_key).items())
+            else:
+                items.append((new_key, v))
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            new_key = f"{parent_key}.{i}" if parent_key else str(i)
+            if isinstance(item, (dict, list)):
+                items.extend(flatten_json(item, new_key).items())
+            else:
+                items.append((new_key, item))
+    
     return dict(items)
 
 def format_output(json_data, tablefmt="fancy_grid"):
@@ -84,13 +96,19 @@ def install_wayfire_plugin(github_url):
         print("Plugin installed successfully.")
 
 def find_dicts_with_value(dict_list, value):
+    def contains_value(d, value):
+        """Recursively check if any value in the dictionary or nested dictionary matches the target value."""
+        for k, v in d.items():
+            if isinstance(v, dict):
+                if contains_value(v, value):
+                    return True
+            elif value in str(v):
+                return True
+        return False
+
     matches = []
     for d in dict_list:
-        # Check top-level values
-        if any(value in str(v) for v in d.values()):
+        if contains_value(d, value):
             matches.append(d)
-        # Check nested dictionaries
-        for v in d.values():
-            if isinstance(v, dict) and any(value in str(sub_v) for sub_v in v.values()):
-                matches.append(d)
     return matches
+

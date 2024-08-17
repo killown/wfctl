@@ -1,10 +1,23 @@
+import configparser
 from wayfire.ipc import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 import json
-from wfctl.utils import format_output, find_dicts_with_value, workspace_to_coordinates, find_device_id, set_output, enable_plugin, disable_plugin, status_plugin, install_wayfire_plugin
+from wfctl.utils import (
+    format_output, find_dicts_with_value, 
+    workspace_to_coordinates, find_device_id, 
+    set_output, enable_plugin, disable_plugin, 
+    status_plugin, install_wayfire_plugin
+)
+
+# Initialize WayfireSocket and WayfireUtils
 sock = WayfireSocket()
 utils = WayfireUtils(sock)
 
+# Initialize configparser and load configuration
+config = configparser.ConfigParser()
+config.read('wayfire_config.ini')
+
+# Helper functions
 def print_output(data, format="fancy_grid"):
     if "-f" in data:
         return format_output(str(data), format)
@@ -13,26 +26,24 @@ def print_output(data, format="fancy_grid"):
 
 def extract_from_dict(s, command, max_len):
     key = command.split()
-    # show a certain key instead of the whole dict
     if len(key) > max_len:
         return s[key[-1]]
-        
 
-def wayfire_commands(command, format=None):
+# Main command processing function
+def wayfire_commands(command):
     if "list views" in command:
         views = sock.list_views()
         value = command.split()[-1]
-        result = find_dicts_with_value(views, value)
-        if result:
-            views = result
-            focused_id = sock.get_focused_view()["id"]
-            views = [view for view in views if view["id"]!=focused_id]
+        if len(command.split()) > 2:
+            result = find_dicts_with_value(views, value)
+            if result:
+                views = result
+                focused_id = sock.get_focused_view()["id"]
+                views = [view for view in views if view["id"] != focused_id]
+
         formatted_output = json.dumps(views, indent=4)
-        if format is not None:
-            print(format_output(str(formatted_output)))
-        else:
-            print(formatted_output)
-    
+        print(formatted_output)
+
     if command == "list outputs":
         s = sock.list_outputs()
         formatted_output = json.dumps(s, indent=4)
@@ -115,10 +126,7 @@ def wayfire_commands(command, format=None):
     if "minimize view" in command:
         id = int(command.split()[2])
         status = command.split()[3]
-        if status == "true":
-            status = True
-        if status == "false":
-            status = False
+        status = True if status == "true" else False
         sock.set_view_minimized(id, status)
 
     if "maximize view" in command:
@@ -138,14 +146,9 @@ def wayfire_commands(command, format=None):
     if "configure device" in command:
         status = command.split()[-1]
         device_id = command.split()[2]
-        print(device_id)
-        if status == "enable":
-            status = True
-        if status == "disable":
-            status = False
-        if type(status) is bool:
+        status = True if status == "enable" else False
+        if isinstance(status, bool):
             device_id = find_device_id(device_id)
-            print(type(device_id))
             sock.configure_input_device(device_id, status)
 
     if "get option" in command:
@@ -153,15 +156,12 @@ def wayfire_commands(command, format=None):
         value = sock.get_option_value(option)
         print(value)
 
-
     if "set option" in command:
         options = command.split()[2:]
         all_options = {}
         for option in options:
-            opt = option.split(":")[0]
-            value = option.split(":")[-1]
+            opt, value = option.split(":")
             all_options[opt] = value
-        print(all_options)
         sock.set_option_values(all_options)
 
     if "get keyboard" in command:
@@ -169,8 +169,13 @@ def wayfire_commands(command, format=None):
         variant = sock.get_option_value("input/xkb_variant")
         model = sock.get_option_value("input/xkb_model")
         options = sock.get_option_value("input/xkb_options")
-        xkb = {"layout":layout["value"], "variant":variant["value"], "model":model["value"], "options":options["value"]}
-        xkb =  json.dumps(xkb, indent=4)
+        xkb = {
+            "layout": layout["value"], 
+            "variant": variant["value"], 
+            "model": model["value"], 
+            "options": options["value"]
+        }
+        xkb = json.dumps(xkb, indent=4)
         print(xkb)
 
     if "enable plugin" in command:
@@ -181,7 +186,7 @@ def wayfire_commands(command, format=None):
         plugin_name = command.split()[-1]
         disable_plugin(plugin_name)
 
-    if "reload plugin":
+    if "reload plugin" in command:
         plugin_name = command.split()[-1]
         disable_plugin(plugin_name)
         enable_plugin(plugin_name)
@@ -208,26 +213,23 @@ def wayfire_commands(command, format=None):
 
         if "layout:" in command:
             xkb_layout = k.split("layout:")[1].split()[0]
-            print(xkb_layout)
-
         if "variant:" in command:
             xkb_variant = k.split("variant:")[1].split()[0]
         if "model:" in command:
             xkb_model = k.split("model:")[1].split()[0]
-
         if "options:" in command:
             xkb_options = k.split("options:")[1].split()[0]
 
         if xkb_layout:
-            sock.set_option_values({"input/xkb_layout":xkb_layout})
+            sock.set_option_values({"input/xkb_layout": xkb_layout})
         if xkb_variant:
-            sock.set_option_values({"input/xkb_variant":xkb_variant})
+            sock.set_option_values({"input/xkb_variant": xkb_variant})
         if xkb_model:
-            sock.set_option_values({"input/xkb_model":xkb_model})
+            sock.set_option_values({"input/xkb_model": xkb_model})
         if xkb_options:
-            sock.set_option_values({"input/xkb_options":xkb_options})
+            sock.set_option_values({"input/xkb_options": xkb_options})
 
-
+# Watch Wayfire events
 def watch_events():
     sock.watch()
 
@@ -235,9 +237,15 @@ def watch_events():
         msg = sock.read_message()
         print(msg)
 
+# Example of how to use configuration options
+def main():
+    # Example configuration usage
+    default_output = config.get('General', 'default_output', fallback='fancy_grid')
+    default_command = config.get('Commands', 'default_command', fallback='list views')
 
+    # Execute the default command with the default output format
+    wayfire_commands(default_command, format=default_output)
 
-
-
-
+if __name__ == "__main__":
+    main()
 
