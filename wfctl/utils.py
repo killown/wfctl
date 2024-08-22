@@ -1,3 +1,4 @@
+from enum import auto
 from wayfire.ipc import WayfireSocket 
 import json
 from tabulate import tabulate
@@ -112,3 +113,9 @@ def find_dicts_with_value(dict_list, value):
             matches.append(d)
     return matches
 
+def watch_events():
+    sock.watch()
+
+    while True:
+        msg = sock.read_message()
+        print(msg)
