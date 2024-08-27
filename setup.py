@@ -8,7 +8,7 @@ long_description = (here / 'README.rst').read_text(encoding='utf-8')
 
 setup(
     name='wfctl',
-    version='0.8.2',
+    version='0.8.4',
     packages=find_packages(),
     install_requires=[
         'wayfire',
