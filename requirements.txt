@@ -1,2 +1,3 @@
-wayfire
-tabulate
+setuptools==69.5.1
+tabulate==0.9.0
+wayfire==2.0

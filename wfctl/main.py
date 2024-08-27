@@ -1,5 +1,5 @@
 import sys
-from wfctl.ipc import wayfire_commands
+from wfctl.ipc import execute_command
 from wfctl.help import usage
 from wfctl.utils import watch_events
 
@@ -13,10 +13,16 @@ def main() -> None:
         watch_events()
         return
 
-    # Extract command from arguments
-    command = ' '.join(arg for arg in sys.argv[1:] if not arg.startswith("-"))
+    # Extract command from arguments as a list
+    command = " ".join([arg for arg in sys.argv[1:]])
 
-    wayfire_commands(command)
+    # Check if command is empty after processing
+    if not command:
+        print("Error: No command provided.")
+        usage()
+        sys.exit(1)
+
+    execute_command(command)
 
 if __name__ == "__main__":
     main()

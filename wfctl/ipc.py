@@ -1,13 +1,15 @@
 import configparser
 import json
+import sys
+import inspect
 from typing import Optional, List, Dict, Any
-from wayfire.ipc import WayfireSocket
+from wayfire import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 from wfctl.utils import (
-    format_output, find_dicts_with_value,
+    find_dicts_with_value,
     workspace_to_coordinates, find_device_id,
     enable_plugin, disable_plugin,
-    status_plugin, install_wayfire_plugin
+    status_plugin
 )
 
 # Initialize WayfireSocket and WayfireUtils
@@ -25,10 +27,10 @@ def extract_from_dict(data: Dict[str, Any], command: str, max_len: int) -> Optio
         return data.get(key[-1], "Key not found")
     return None
 
-def handle_list_views(command: str) -> None:
+def handle_list_views() -> None:
     """Handle the 'list views' command."""
     views = sock.list_views()
-    parts = command.split()
+    parts = sys.argv[1:]
     if len(parts) > 2:
         value = parts[-1]
         if value.isdigit():
@@ -90,12 +92,9 @@ def handle_search_views(command: str) -> None:
 def handle_set_workspace(command: str) -> None:
     """Handle the 'set workspace' command."""
     try:
-        workspace_number = int(command.split()[-1])
-        grid_width = sock.get_focused_output()["workspace"]["grid_width"]
-        coords = workspace_to_coordinates(workspace_number, grid_width)
-        sock.set_workspace(coords['x'], coords['y'])
-    except ValueError:
-        print("Error: Invalid workspace number.")
+        workspace_number = int(sys.argv[1:][-1])
+        x, y  = utils._total_workspaces()[workspace_number]
+        sock.set_workspace(x, y)
     except Exception as e:
         print(f"Error: {e}")
 
@@ -242,7 +241,8 @@ def handle_configure_device(command: str) -> None:
         device_id = parts[2]
         status = status == "enable"
         device_id = find_device_id(device_id)
-        sock.configure_input_device(device_id, status)
+        if device_id:
+            sock.configure_input_device(device_id, status)
     except Exception as e:
         print(f"Error: {e}")
 
@@ -258,98 +258,72 @@ def handle_set_option(command: str) -> None:
     all_options = {}
     for option in options:
         try:
-            opt, value = option.split(":")
-            all_options[opt] = value
+            opt, val = option.split("=")
+            all_options[opt] = val
         except ValueError:
-            print(f"Error: Invalid option format '{option}'.")
-    sock.set_option_values(all_options)
+            print(f"Error: Invalid format for option '{option}'")
+            return
 
-def handle_get_keyboard() -> None:
-    """Handle the 'get keyboard' command."""
-    layout = sock.get_option_value("input/xkb_layout")
-    variant = sock.get_option_value("input/xkb_variant")
-    print(f"Layout: {layout}, Variant: {variant}")
+    for option, value in all_options.items():
+        sock.set_option_values(option)
+        print(f"Option {option} set to {value}")
 
-def handle_list_plugins(command: str) -> None:
-    """Handle the 'list plugins' command."""
-    plugins = utils.list_plugins()
-    print(json.dumps(plugins, indent=4))
+def handle_plugin_action(command: str, action: str) -> None:
+    """Handle plugin-related actions (enable, disable, status)."""
+    plugin_name = command.split()[-1]
+    try:
+        if action == 'enable':
+            enable_plugin(plugin_name)
+        elif action == 'disable':
+            disable_plugin(plugin_name)
+        elif action == 'status':
+            print(status_plugin(plugin_name))
+    except Exception as e:
+        print(f"Error: {e}")
 
-def handle_enable_plugin(command: str) -> None:
-    """Handle the 'enable plugin' command."""
-    parts = command.split()
-    plugin_name = parts[2]
-    enable_plugin(plugin_name)
+# Define command mapping to corresponding handler functions
+command_map = {
+    "list views": handle_list_views,
+    "list outputs": handle_list_outputs,
+    "search views": handle_search_views,
+    "set workspace": handle_set_workspace,
+    "get focused output": handle_get_focused_output,
+    "get focused view": handle_get_focused_view,
+    "get focused workspace": handle_get_focused_workspace,
+    "next workspace": handle_next_workspace,
+    "fullscreen view": handle_fullscreen_view,
+    "get view": handle_get_view,
+    "resize view": handle_resize_view,
+    "move view": handle_move_view,
+    "close view": handle_close_view,
+    "minimize view": handle_minimize_view,
+    "maximize view": handle_maximize_view,
+    "set view alpha": handle_set_view_alpha,
+    "list inputs": handle_list_inputs,
+    "configure device": handle_configure_device,
+    "get option": handle_get_option,
+    "set option": handle_set_option,
+    "enable plugin": lambda command: handle_plugin_action(command, 'enable'),
+    "disable plugin": lambda command: handle_plugin_action(command, 'disable'),
+    "status plugin": lambda command: handle_plugin_action(command, 'status'),
+}
 
-def handle_disable_plugin(command: str) -> None:
-    """Handle the 'disable plugin' command."""
-    parts = command.split()
-    plugin_name = parts[2]
-    disable_plugin(plugin_name)
+def has_arguments(func):
+    """Check if a function has any arguments."""
+    signature = inspect.signature(func)
+    return len(signature.parameters) > 0
 
-def handle_status_plugin(command: str) -> None:
-    """Handle the 'status plugin' command."""
-    parts = command.split()
-    plugin_name = parts[2]
-    status = status_plugin(plugin_name)
-    print(status)
-
-def handle_install_plugin(command: str) -> None:
-    """Handle the 'install plugin' command."""
-    parts = command.split()
-    plugin_url = parts[2]
-    install_wayfire_plugin(plugin_url)
-
-def wayfire_commands(command: str) -> None:
-    """Process Wayfire commands."""
-    
-    command_map = {
-        "list views": handle_list_views,
-        "list outputs": handle_list_outputs,
-        "search views": handle_search_views,
-        "set workspace": handle_set_workspace,
-        "get focused output": handle_get_focused_output,
-        "get focused view": handle_get_focused_view,
-        "get focused workspace": handle_get_focused_workspace,
-        "next workspace": handle_next_workspace,
-        "fullscreen view": handle_fullscreen_view,
-        "get view": handle_get_view,
-        "resize view": handle_resize_view,
-        "move view": handle_move_view,
-        "close view": handle_close_view,
-        "minimize view": handle_minimize_view,
-        "maximize view": handle_maximize_view,
-        "set view alpha": handle_set_view_alpha,
-        "list inputs": handle_list_inputs,
-        "configure device": handle_configure_device,
-        "get option": handle_get_option,
-        "set option": handle_set_option,
-        "get keyboard": handle_get_keyboard,
-        "list plugins": handle_list_plugins,
-        "enable plugin": handle_enable_plugin,
-        "disable plugin": handle_disable_plugin,
-        "status plugin": handle_status_plugin,
-        "install plugin": handle_install_plugin
-    }
-
-    command_parts = command.split()
-    if not command_parts:
-        print("Error: No command provided.")
-        return
-
-    # Extract the command key
-    command_key = ' '.join(command_parts[:2])
-    if command_key in command_map:
-        command_map[command_key](command)
+def execute_command(command: str) -> None:
+    """Execute a command based on user input."""
+    cmd = [cmd for cmd in command_map if cmd in command]
+    if cmd:
+        command = cmd[0]
+        exec_function = command_map[command]
+        if has_arguments(exec_function):
+            exec_function(command)
+        else:
+            exec_function()
     else:
-        print("Error: Command not recognized.")
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        wayfire_commands(' '.join(sys.argv[1:]))
-    else:
-        print("Usage: python script.py <command>")
-
+        print(f"Error: Unknown command '{command}'")
 
 

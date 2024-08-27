@@ -34,7 +34,6 @@ def find_device_id(name_or_id_or_type):
 
 def flatten_json(data, parent_key=''):
     items = []
-    
     if isinstance(data, dict):
         for k, v in data.items():
             new_key = f"{parent_key}.{k}" if parent_key else k
@@ -61,7 +60,6 @@ def format_output(json_data, tablefmt="fancy_grid"):
     table = tabulate(table_data, headers=headers, tablefmt=tablefmt)
     return table
 
-
 def disable_plugin(plugin_name):
     plugins = sock.get_option_value("core/plugins")["value"]
     p = " ".join([i for i in plugins.split() if plugin_name not in i])
@@ -84,17 +82,6 @@ def status_plugin(plugin_name):
         print("plugin enabled")
     else:
         print("plugin disabled")
-
-def install_wayfire_plugin(github_url):
-    with tempfile.TemporaryDirectory() as temp_dir:
-        repo_name = github_url.rstrip('/').split('/')[-1]
-        repo_dir = os.path.join(temp_dir, repo_name)
-        subprocess.run(['git', 'clone', github_url, repo_dir], check=True)
-        os.chdir(repo_dir)
-        os.environ['PKG_CONFIG_PATH'] = '/usr/lib/wlroots/pkgconfig'
-        subprocess.run(['meson', 'setup', 'build', '--prefix=/usr'], check=True)
-        subprocess.run(['sudo', 'ninja', '-C', 'build', 'install'], check=True)
-        print("Plugin installed successfully.")
 
 def find_dicts_with_value(dict_list, value):
     def contains_value(d, value):
