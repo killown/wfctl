@@ -3,6 +3,7 @@ from wfctl.ipc import execute_command
 from wfctl.help import usage
 from wfctl.utils import watch_events
 
+
 def main() -> None:
     """Main function to handle command-line arguments and execute commands."""
     if len(sys.argv) < 2 or "-h" in sys.argv:
@@ -24,6 +25,6 @@ def main() -> None:
 
     execute_command(command)
 
+
 if __name__ == "__main__":
     main()
-

@@ -1,17 +1,14 @@
-from enum import auto
-from wayfire.ipc import WayfireSocket 
+from wayfire.ipc import WayfireSocket
 import json
 from tabulate import tabulate
-import os 
-import tempfile
-import subprocess
 
 sock = WayfireSocket()
+
 
 def workspace_to_coordinates(workspace_number, grid_width):
     """
     Convert a workspace number to coordinates in the grid.
-    
+
     :param workspace_number: Workspace number (1-based)
     :param grid_width: Number of columns in the grid
     :return: Dictionary with x and y coordinates (0-based)
@@ -22,17 +19,21 @@ def workspace_to_coordinates(workspace_number, grid_width):
     y = index // grid_width
     return {"x": x, "y": y}
 
+
 def find_device_id(name_or_id_or_type):
     sock = WayfireSocket()
     devices = sock.list_input_devices()
     for dev in devices:
-        if dev['name'] == name_or_id_or_type or str(dev['id']) == name_or_id_or_type or dev['type'] == name_or_id_or_type:
-            return int(dev['id'])
+        if (
+            dev["name"] == name_or_id_or_type
+            or str(dev["id"]) == name_or_id_or_type
+            or dev["type"] == name_or_id_or_type
+        ):
+            return int(dev["id"])
     return None
 
 
-
-def flatten_json(data, parent_key=''):
+def flatten_json(data, parent_key=""):
     items = []
     if isinstance(data, dict):
         for k, v in data.items():
@@ -48,8 +49,9 @@ def flatten_json(data, parent_key=''):
                 items.extend(flatten_json(item, new_key).items())
             else:
                 items.append((new_key, item))
-    
+
     return dict(items)
+
 
 def format_output(json_data, tablefmt="fancy_grid"):
     data = json.loads(json_data)
@@ -60,21 +62,25 @@ def format_output(json_data, tablefmt="fancy_grid"):
     table = tabulate(table_data, headers=headers, tablefmt=tablefmt)
     return table
 
+
 def disable_plugin(plugin_name):
     plugins = sock.get_option_value("core/plugins")["value"]
     p = " ".join([i for i in plugins.split() if plugin_name not in i])
     sock.set_option_values({"core/plugins": p})
 
+
 def enable_plugin(plugin_name):
     plugins = sock.get_option_value("core/plugins")["value"]
-    p = plugins + " " +  plugin_name
+    p = plugins + " " + plugin_name
     sock.set_option_values({"core/plugins": p})
+
 
 def set_output(output_name, status):
     method = "output:{}/mode".format(output_name)
     if status == "on":
         status = "auto"
-    sock.set_option_values({method:status})
+    sock.set_option_values({method: status})
+
 
 def status_plugin(plugin_name):
     status = plugin_name in sock.get_option_value("core/plugins")["value"].split()
@@ -82,6 +88,7 @@ def status_plugin(plugin_name):
         print("plugin enabled")
     else:
         print("plugin disabled")
+
 
 def find_dicts_with_value(dict_list, value):
     def contains_value(d, value):
@@ -99,6 +106,7 @@ def find_dicts_with_value(dict_list, value):
         if contains_value(d, value):
             matches.append(d)
     return matches
+
 
 def watch_events():
     sock.watch()

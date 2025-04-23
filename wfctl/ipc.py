@@ -7,9 +7,11 @@ from wayfire import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 from wfctl.utils import (
     find_dicts_with_value,
-    workspace_to_coordinates, find_device_id,
-    enable_plugin, disable_plugin,
-    status_plugin
+    workspace_to_coordinates,
+    find_device_id,
+    enable_plugin,
+    disable_plugin,
+    status_plugin,
 )
 
 # Initialize WayfireSocket and WayfireUtils
@@ -18,14 +20,18 @@ utils = WayfireUtils(sock)
 
 # Initialize configparser and load configuration
 config = configparser.ConfigParser()
-config.read('wayfire_config.ini')
+config.read("wayfire_config.ini")
 
-def extract_from_dict(data: Dict[str, Any], command: str, max_len: int) -> Optional[Any]:
+
+def extract_from_dict(
+    data: Dict[str, Any], command: str, max_len: int
+) -> Optional[Any]:
     """Extract value from dictionary based on command."""
     key = command.split()
     if len(key) > max_len:
         return data.get(key[-1], "Key not found")
     return None
+
 
 def handle_list_views() -> None:
     """Handle the 'list views' command."""
@@ -42,8 +48,9 @@ def handle_list_views() -> None:
                 focused_id = sock.get_focused_view()["id"]
                 views = [view for view in views if view["id"] != focused_id]
 
-    formatted_output = json.dumps(views, indent=4)
+    formatted_output = json.dumps(views, indent=4, ensure_ascii=False)
     print(formatted_output)
+
 
 def handle_list_outputs() -> None:
     """Handle the 'list outputs' command."""
@@ -51,16 +58,21 @@ def handle_list_outputs() -> None:
     formatted_output = json.dumps(s, indent=4)
     print(formatted_output)
 
+
 def handle_search_views(command: str) -> None:
     """Handle the 'search views' command."""
-    
+
     def is_numeric(value: str) -> bool:
         """Check if a string represents a numeric value (including negative numbers)."""
-        if value.startswith('-'):
-            return value[1:].isdigit() and len(value) > 1  # Ensure that there's at least one digit after '-'
+        if value.startswith("-"):
+            return (
+                value[1:].isdigit() and len(value) > 1
+            )  # Ensure that there's at least one digit after '-'
         return value.isdigit()
 
-    def exclude_focused_view(views: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    def exclude_focused_view(
+        views: Optional[List[Dict[str, Any]]],
+    ) -> List[Dict[str, Any]]:
         """Exclude the focused view from the list of views."""
         if views is None:
             return []
@@ -89,14 +101,16 @@ def handle_search_views(command: str) -> None:
     else:
         print("Error: Invalid command format.")
 
+
 def handle_set_workspace(command: str) -> None:
     """Handle the 'set workspace' command."""
     try:
         workspace_number = int(sys.argv[1:][-1])
-        x, y  = utils._total_workspaces()[workspace_number]
+        x, y = utils._total_workspaces()[workspace_number]
         sock.set_workspace(x, y)
     except Exception as e:
         print(f"Error: {e}")
+
 
 def handle_get_focused_output(command: str) -> None:
     """Handle the 'get focused output' command."""
@@ -108,6 +122,7 @@ def handle_get_focused_output(command: str) -> None:
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)
 
+
 def handle_get_focused_view(command: str) -> None:
     """Handle the 'get focused view' command."""
     s = sock.get_focused_view()
@@ -118,14 +133,17 @@ def handle_get_focused_view(command: str) -> None:
         formatted_output = json.dumps(s, indent=4)
         print(formatted_output)
 
+
 def handle_get_focused_workspace() -> None:
     """Handle the 'get focused workspace' command."""
     s = utils.get_active_workspace_number()
     print(s)
 
+
 def handle_next_workspace() -> None:
     """Handle the 'next workspace' command."""
     utils.go_next_workspace()
+
 
 def handle_fullscreen_view(command: str) -> None:
     """Handle the 'fullscreen view' command."""
@@ -138,6 +156,7 @@ def handle_fullscreen_view(command: str) -> None:
         print("Error: Invalid view ID or state.")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def handle_get_view(command: str) -> None:
     """Handle the 'get view' command."""
@@ -155,6 +174,7 @@ def handle_get_view(command: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def handle_resize_view(command: str) -> None:
     """Handle the 'resize view' command."""
     try:
@@ -168,6 +188,7 @@ def handle_resize_view(command: str) -> None:
         print("Error: Invalid view ID, width, or height.")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def handle_move_view(command: str) -> None:
     """Handle the 'move view' command."""
@@ -183,6 +204,7 @@ def handle_move_view(command: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def handle_close_view(command: str) -> None:
     """Handle the 'close view' command."""
     try:
@@ -192,6 +214,7 @@ def handle_close_view(command: str) -> None:
         print("Error: Invalid view ID.")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def handle_minimize_view(command: str) -> None:
     """Handle the 'minimize view' command."""
@@ -205,15 +228,17 @@ def handle_minimize_view(command: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def handle_maximize_view(command: str) -> None:
     """Handle the 'maximize view' command."""
     try:
         id = int(command.split()[-1])
-        utils.set_view_maximized(id )
+        utils.set_view_maximized(id)
     except ValueError:
         print("Error: Invalid view ID.")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def handle_set_view_alpha(command: str) -> None:
     """Handle the 'set view alpha' command."""
@@ -227,11 +252,13 @@ def handle_set_view_alpha(command: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def handle_list_inputs() -> None:
     """Handle the 'list inputs' command."""
     s = sock.list_input_devices()
     formatted_output = json.dumps(s, indent=4)
     print(formatted_output)
+
 
 def handle_configure_device(command: str) -> None:
     """Handle the 'configure device' command."""
@@ -246,11 +273,13 @@ def handle_configure_device(command: str) -> None:
     except Exception as e:
         print(f"Error: {e}")
 
+
 def handle_get_option(command: str) -> None:
     """Handle the 'get option' command."""
     option = command.split()[-1]
     value = sock.get_option_value(option)
     print(value)
+
 
 def handle_set_option(command: str) -> None:
     """Handle the 'set option' command."""
@@ -268,18 +297,20 @@ def handle_set_option(command: str) -> None:
         sock.set_option_values(option)
         print(f"Option {option} set to {value}")
 
+
 def handle_plugin_action(command: str, action: str) -> None:
     """Handle plugin-related actions (enable, disable, status)."""
     plugin_name = command.split()[-1]
     try:
-        if action == 'enable':
+        if action == "enable":
             enable_plugin(plugin_name)
-        elif action == 'disable':
+        elif action == "disable":
             disable_plugin(plugin_name)
-        elif action == 'status':
+        elif action == "status":
             print(status_plugin(plugin_name))
     except Exception as e:
         print(f"Error: {e}")
+
 
 # Define command mapping to corresponding handler functions
 command_map = {
@@ -303,27 +334,27 @@ command_map = {
     "configure device": handle_configure_device,
     "get option": handle_get_option,
     "set option": handle_set_option,
-    "enable plugin": lambda command: handle_plugin_action(command, 'enable'),
-    "disable plugin": lambda command: handle_plugin_action(command, 'disable'),
-    "status plugin": lambda command: handle_plugin_action(command, 'status'),
+    "enable plugin": lambda command: handle_plugin_action(command, "enable"),
+    "disable plugin": lambda command: handle_plugin_action(command, "disable"),
+    "status plugin": lambda command: handle_plugin_action(command, "status"),
 }
+
 
 def has_arguments(func):
     """Check if a function has any arguments."""
     signature = inspect.signature(func)
     return len(signature.parameters) > 0
 
+
 def execute_command(command: str) -> None:
     """Execute a command based on user input."""
     cmd = [cmd for cmd in command_map if cmd in command]
     if cmd:
-        command = cmd[0]
-        exec_function = command_map[command]
+        cmd = cmd[0]
+        exec_function = command_map[cmd]
         if has_arguments(exec_function):
             exec_function(command)
         else:
             exec_function()
     else:
         print(f"Error: Unknown command '{command}'")
-
-
