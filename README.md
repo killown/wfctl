@@ -24,7 +24,7 @@ pip install -e .
 | get focused workspace   | Get the currently focused workspace.                                                                |
 | next workspace          | Switch to the next workspace.                                                                       |
 | fullscreen view         | Set a view fullscreen from a given id.                                                              |
-| get view info           | Get information about a specific view using a given {view_id}.                                      |
+| get view                | Get information about a specific view using a given {view_id}.                                      |
 | resize view             | Resize a specific view: wfctl resize view {view_id} width height.                                   |
 | move view               | Move a specific view: wfctl move view {view_id} x-coordinate y-coordinate.                           |
 | close view              | Close a view using a given {view_id}.                                                              |
