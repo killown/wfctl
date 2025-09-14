@@ -31,7 +31,7 @@ pip install -e .
 | minimize view           | Minimize a view: wfctl minimize view {view_id} {true/false}.                                        |
 | maximize                | Maximize a view from a given id.                                                                    |
 | set view alpha          | Set view transparency: wfctl set view alpha {view_id} {0.4}.                                        |
-| list input              | Lists all input devices currently available in the Wayfire environment.                             |
+| list inputs              | Lists all input devices currently available in the Wayfire environment.                             |
 | configure device        | Configure a device input: wfctl configure device {device_id} {enable/disable}.                      |
 | get option              | Get Wayfire config value: wfctl get option section/option.                                           |
 | set options             | Set Wayfire config values: wfctl set options section_1/option_1:value_1 section_2/option_2:value_2. |
