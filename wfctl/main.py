@@ -15,7 +15,7 @@ def main() -> None:
         return
 
     # Extract command from arguments as a list
-    command = " ".join([arg for arg in sys.argv[1:]])
+    command = " ".join([arg.strip() for arg in sys.argv[1:]])
 
     # Check if command is empty after processing
     if not command:

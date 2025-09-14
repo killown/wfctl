@@ -346,15 +346,50 @@ def has_arguments(func):
     return len(signature.parameters) > 0
 
 
+def normalize_command(command: str) -> str:
+    """
+    Trim surrounding whitespace and collapse runs of whitespace into single spaces.
+    Also removes stray \r, tabs, zero-width spaces when possible via split/join.
+    """
+    if command is None:
+        return ""
+    # split()/join() removes all whitespace runs (including \r, \t, multiple spaces)
+    return " ".join(command.split()).strip()
+
+
+def find_best_command_key(command: str) -> Optional[str]:
+    """
+    Return the best-matching key from command_map for the given command string.
+    Matching rules:
+      - command == key, OR command starts with key + " "
+      - among matches, return the longest key (most specific)
+    """
+    matches = [
+        k for k in command_map.keys() if command == k or command.startswith(k + " ")
+    ]
+    if not matches:
+        return None
+    # choose the longest (most specific) match
+    return max(matches, key=len)
+
+
 def execute_command(command: str) -> None:
-    """Execute a command based on user input."""
-    cmd = [cmd for cmd in command_map if cmd in command]
-    if cmd:
-        cmd = cmd[0]
-        exec_function = command_map[cmd]
-        if has_arguments(exec_function):
-            exec_function(command)
-        else:
-            exec_function()
-    else:
+    """Execute a command based on user input with safer matching and normalized input."""
+    command = normalize_command(command)
+    if not command:
+        print("Error: empty command")
+        return
+
+    key = find_best_command_key(command)
+    if key is None:
         print(f"Error: Unknown command '{command}'")
+        return
+
+    exec_function = command_map[key]
+
+    # print(f"DEBUG: matched key={repr(key)} for command={repr(command)}")
+
+    if has_arguments(exec_function):
+        exec_function(command)
+    else:
+        exec_function()
