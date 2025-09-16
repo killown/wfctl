@@ -133,6 +133,10 @@ def usage():
 
     subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
     subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
+    subparsers.add_parser(
+        "install plugin",
+        help="Install a third-party plugin from a GitHub repository URL.",
+    )
 
     args = parser.parse_args()
 

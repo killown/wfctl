@@ -2,23 +2,24 @@ import configparser
 import json
 import sys
 import inspect
+import subprocess
+import os
+import re
+import tempfile
 from typing import Optional, List, Dict, Any
 from wayfire import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
 from wfctl.utils import (
     find_dicts_with_value,
-    workspace_to_coordinates,
     find_device_id,
     enable_plugin,
     disable_plugin,
     status_plugin,
 )
 
-# Initialize WayfireSocket and WayfireUtils
 sock = WayfireSocket()
 utils = WayfireUtils(sock)
 
-# Initialize configparser and load configuration
 config = configparser.ConfigParser()
 config.read("wayfire_config.ini")
 
@@ -65,9 +66,7 @@ def handle_search_views(command: str) -> None:
     def is_numeric(value: str) -> bool:
         """Check if a string represents a numeric value (including negative numbers)."""
         if value.startswith("-"):
-            return (
-                value[1:].isdigit() and len(value) > 1
-            )  # Ensure that there's at least one digit after '-'
+            return value[1:].isdigit() and len(value) > 1
         return value.isdigit()
 
     def exclude_focused_view(
@@ -81,7 +80,6 @@ def handle_search_views(command: str) -> None:
 
     def format_find_views_output(value: Any, key: Optional[str] = None) -> str:
         """Format the output from utils.find_views and filter out the focused view."""
-        # Convert value to integer if it is numeric
         if is_numeric(value) or "-" in value:
             value = int(value)
 
@@ -93,11 +91,11 @@ def handle_search_views(command: str) -> None:
     if len(parts) == 3:
         value = parts[2]
         key = None
-        print(format_find_views_output(value, key))  # Pass only value
+        print(format_find_views_output(value, key))
     elif len(parts) == 4:
         value = parts[2]
         key = parts[3]
-        print(format_find_views_output(value, key))  # Pass value and key
+        print(format_find_views_output(value, key))
     else:
         print("Error: Invalid command format.")
 
@@ -156,6 +154,170 @@ def handle_fullscreen_view(command: str) -> None:
         print("Error: Invalid view ID or state.")
     except Exception as e:
         print(f"Error: {e}")
+
+
+def is_wayfire_plugin_project(meson_build_path: str) -> bool:
+    """
+    Analyze a meson.build file to determine if it's for a Wayfire plugin project.
+    Looks for indicators like 'dependency('wayfire')' or '-DWAYFIRE_PLUGIN'.
+    """
+    try:
+        with open(meson_build_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Look for key indicators
+        indicators = [
+            r"dependency\s*\(\s*['\"]wayfire['\"]",
+            r"add_project_arguments\s*\(\s*\[[^]]*['\"]-DWAYFIRE_PLUGIN['\"]",
+        ]
+
+        for pattern in indicators:
+            if re.search(pattern, content, re.IGNORECASE):
+                return True
+
+        return False
+    except Exception:
+        # If we can't read or parse the file, assume it's not a Wayfire plugin
+        return False
+
+
+def find_specific_plugin_directory(root_path: str, plugin_name: str) -> str:
+    """
+    Recursively search for a directory with the exact name `plugin_name` that contains a meson.build file.
+    Returns the path to the directory, or None if not found.
+    """
+    for dirpath, dirnames, filenames in os.walk(root_path):
+        if os.path.basename(dirpath) == plugin_name and "meson.build" in filenames:
+            return dirpath
+    return None
+
+
+def find_wayfire_plugin_directories(root_path: str) -> list:
+    """
+    Recursively search for directories containing a meson.build file that defines a Wayfire plugin project.
+    Returns a list of directory paths.
+    """
+    plugin_dirs = []
+
+    for dirpath, dirnames, filenames in os.walk(root_path):
+        if "meson.build" in filenames:
+            meson_path = os.path.join(dirpath, "meson.build")
+            if is_wayfire_plugin_project(meson_path):
+                plugin_dirs.append(dirpath)
+
+    return plugin_dirs
+
+
+def handle_install_plugin(command: str) -> None:
+    """
+    Handle the 'install plugin' command.
+    Installs plugin(s) from a given GitHub repository URL.
+    Optionally, specify a plugin name to target a specific subdirectory.
+    The repository is cloned into a unique temporary directory and cleaned up afterward.
+    Examples:
+        wfctl install plugin https://github.com/killown/wayfire-plugins hide-view
+        wfctl install plugin https://github.com/killown/wayfire-plugins
+    """
+    parts = command.split()
+    if len(parts) < 3:
+        print("Error: Please provide a GitHub repository URL.")
+        return
+
+    repo_url = parts[2]
+    plugin_name = parts[3] if len(parts) > 3 else None
+
+    # Define the user's local installation root
+    home_dir = os.path.expanduser("~")
+    local_install_root = os.path.join(home_dir, ".local")
+
+    # The build directory (will be relative to each meson project dir)
+    build_dir = "build"
+
+    # Create a unique temporary directory for cloning
+    with tempfile.TemporaryDirectory(prefix="wfctl_", dir="/tmp") as tmp_dir:
+        print(f"Created temporary directory: {tmp_dir}")
+
+        try:
+            clone_path = os.path.join(tmp_dir, "repo_clone")
+            print(f"Cloning repository: {repo_url} into {clone_path}")
+            subprocess.run(["git", "clone", repo_url, clone_path], check=True)
+
+            project_dirs = []
+
+            if plugin_name:
+                # User specified a plugin name, search for that exact directory
+                print(f"Searching for plugin directory: {plugin_name}")
+                specific_dir = find_specific_plugin_directory(clone_path, plugin_name)
+                if specific_dir:
+                    project_dirs = [specific_dir]
+                    print(f"Found plugin directory: {specific_dir}")
+                else:
+                    print(
+                        f"Error: Could not find a directory named '{plugin_name}' containing a meson.build file."
+                    )
+                    return
+            else:
+                # No plugin name specified, find all Wayfire plugin projects
+                project_dirs = find_wayfire_plugin_directories(clone_path)
+                if not project_dirs:
+                    print("Error: No Wayfire plugin projects found in the repository.")
+                    return
+
+                print(f"Found {len(project_dirs)} Wayfire plugin project(s):")
+                for d in project_dirs:
+                    print(f"  - {d}")
+
+            # Install each identified project directory
+            for project_dir in project_dirs:
+                print(f"\n--- Installing plugin project from: {project_dir} ---")
+                original_dir = os.getcwd()
+                try:
+                    os.chdir(project_dir)
+
+                    print("Configuring build with Meson...")
+                    # Configure Meson with the user's local prefix
+                    meson_cmd = [
+                        "meson",
+                        "setup",
+                        build_dir,
+                        f"--prefix={local_install_root}",
+                        "--buildtype=release",
+                    ]
+                    subprocess.run(meson_cmd, check=True)
+
+                    print("Compiling with Ninja...")
+                    subprocess.run(["ninja", "-C", build_dir], check=True)
+
+                    print("Installing...")
+                    env = os.environ.copy()
+                    env["DESTDIR"] = ""
+
+                    subprocess.run(
+                        ["ninja", "-C", build_dir, "install"], env=env, check=True
+                    )
+
+                    print(
+                        f"Plugin project installed successfully to {local_install_root}"
+                    )
+
+                except subprocess.CalledProcessError as e:
+                    print(f"Installation failed for {project_dir}: {e}")
+                except Exception as e:
+                    print(f"An unexpected error occurred for {project_dir}: {e}")
+                finally:
+                    os.chdir(original_dir)
+
+            print("\nAll plugin projects installed successfully.")
+            print("You may need to restart Wayfire for it to detect the new plugins.")
+            print("To enable a specific plugin, use: wfctl enable plugin <plugin_name>")
+
+        except subprocess.CalledProcessError as e:
+            print(f"Installation failed during step: {e.cmd}")
+            print(f"Return code: {e.returncode}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        finally:
+            print(f"Temporary directory {tmp_dir} has been removed.")
 
 
 def handle_get_view(command: str) -> None:
@@ -337,6 +499,7 @@ command_map = {
     "enable plugin": lambda command: handle_plugin_action(command, "enable"),
     "disable plugin": lambda command: handle_plugin_action(command, "disable"),
     "status plugin": lambda command: handle_plugin_action(command, "status"),
+    "install plugin": handle_install_plugin,
 }
 
 
