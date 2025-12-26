@@ -1,144 +1,166 @@
 import argparse
+import sys
 
 
-def usage():
+def usage() -> None:
+    """
+    Generate and display the help documentation for wfctl.
+
+    This function uses argparse to define the CLI interface, matching the
+    internal command_map routing logic.
+    """
     parser = argparse.ArgumentParser(
-        description="A command-line tool for interacting with Wayfire."
+        description="wfctl: A high-performance controller for the Wayfire Compositor."
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Define all commands and their descriptions
+    # --- Information Gathering ---
     subparsers.add_parser("list views", help="List all views currently available.")
-    subparsers.add_parser(
-        "list outputs", help="List all outputs connected to the system."
+    subparsers.add_parser("list outputs", help="List all physical and virtual outputs.")
+    subparsers.add_parser("list inputs", help="List all connected input devices.")
+    subparsers.add_parser("list wsets", help="List all workspace sets (output groups).")
+
+    list_config_parser = subparsers.add_parser(
+        "list config", help="List live configuration options."
+    )
+    list_config_parser.add_argument(
+        "filter", nargs="?", help="Optional substring to filter sections or keys."
     )
 
-    switch_workspace_parser = subparsers.add_parser(
-        "set workspace", help="Switch to a specific workspace."
+    # --- View Manipulation ---
+    close_view_parser = subparsers.add_parser("close view", help="Close a view by ID.")
+    close_view_parser.add_argument("view_id", type=int, help="Target view ID.")
+
+    fullscreen_view_parser = subparsers.add_parser(
+        "fullscreen view", help="Set fullscreen state."
     )
-    switch_workspace_parser.add_argument(
-        "workspace_number", type=int, help="The workspace number to switch to."
+    fullscreen_view_parser.add_argument("view_id", type=int)
+    fullscreen_view_parser.add_argument(
+        "state", choices=["true", "false"], help="True to enable, False to disable."
     )
 
-    subparsers.add_parser(
-        "get focused output", help="Get the currently focused output."
+    get_view_parser = subparsers.add_parser(
+        "get view", help="Get detailed info for a view."
     )
-    subparsers.add_parser("get focused view", help="Get the currently focused view.")
-    subparsers.add_parser(
-        "get focused workspace", help="Get the currently focused workspace."
-    )
-    subparsers.add_parser("next workspace", help="Switch to the next workspace.")
-    subparsers.add_parser(
-        "fullscreen view", help="Set fullscreen the view from the given id."
-    )
+    get_view_parser.add_argument("view_id", type=int)
 
-    get_view_info_parser = subparsers.add_parser(
-        "get view",
-        help="Get information about a specific view using a given {view_id}.",
+    maximize_view_parser = subparsers.add_parser(
+        "maximize view", help="Maximize a view."
     )
-    get_view_info_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to get information about."
-    )
-
-    resize_view_parser = subparsers.add_parser(
-        "resize view",
-        help="Resize a specific view, wfctl resize view {view_id} width height.",
-    )
-    resize_view_parser.add_argument(
-        "width", type=int, help="The new width of the view."
-    )
-    resize_view_parser.add_argument(
-        "height", type=int, help="The new height of the view."
-    )
-
-    move_view_parser = subparsers.add_parser(
-        "move view",
-        help="Move a specific view, wfctl move view {view_id} x-coordinate y-coordinate.",
-    )
-    move_view_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to move."
-    )
-    move_view_parser.add_argument(
-        "x", type=int, help="The new x-coordinate of the view."
-    )
-    move_view_parser.add_argument(
-        "y", type=int, help="The new y-coordinate of the view."
-    )
-
-    close_view_parser = subparsers.add_parser(
-        "close view", help="Close a view using a given {view_id}."
-    )
-    close_view_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to close."
-    )
+    maximize_view_parser.add_argument("view_id", type=int)
 
     minimize_view_parser = subparsers.add_parser(
-        "minimize view",
-        help="minimize a view, wfctl minimize view {view_id} {true/false}.",
+        "minimize view", help="Minimize or restore a view."
     )
-    minimize_view_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to minimize."
+    minimize_view_parser.add_argument("view_id", type=int)
+    minimize_view_parser.add_argument("state", choices=["true", "false"])
+
+    move_view_parser = subparsers.add_parser(
+        "move view", help="Move view to absolute coordinates."
     )
-    minimize_view_parser.add_argument(
-        "bool", type=int, help="if minimize then true except use false"
+    move_view_parser.add_argument("view_id", type=int)
+    move_view_parser.add_argument("x", type=int)
+    move_view_parser.add_argument("y", type=int)
+
+    resize_view_parser = subparsers.add_parser(
+        "resize view", help="Change view dimensions."
+    )
+    resize_view_parser.add_argument("view_id", type=int)
+    resize_view_parser.add_argument("width", type=int)
+    resize_view_parser.add_argument("height", type=int)
+
+    set_alpha_parser = subparsers.add_parser(
+        "set view alpha", help="Set transparency (0.0 - 1.0)."
+    )
+    set_alpha_parser.add_argument("view_id", type=int)
+    set_alpha_parser.add_argument("alpha", type=float)
+
+    # --- Workspace & Spatial Management ---
+    set_ws_parser = subparsers.add_parser(
+        "set workspace", help="Switch current workspace."
+    )
+    set_ws_parser.add_argument(
+        "index", type=int, help="Workspace index from total list."
     )
 
-    maximize_parser = subparsers.add_parser(
-        "maximize", help="Maximize a view from a given id."
+    mv_ws_parser = subparsers.add_parser(
+        "move view to workspace", help="Send view to workspace coordinates."
     )
-    maximize_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to maximize or restore."
-    )
+    mv_ws_parser.add_argument("view_id", type=int)
+    mv_ws_parser.add_argument("x", type=int)
+    mv_ws_parser.add_argument("y", type=int)
 
-    set_view_alpha_parser = subparsers.add_parser(
-        "set view alpha",
-        help="Set view transparency, wfctl set view alpha {view_id} {0.4}.",
-    )
-    set_view_alpha_parser.add_argument(
-        "view_id", type=int, help="The ID of the view to set alpha."
-    )
-    set_view_alpha_parser.add_argument("alpha", type=float, help="Float number...")
+    subparsers.add_parser("next workspace", help="Cycle to the next workspace.")
 
-    subparsers.add_parser("-m", help="watch wayfire IPC events")
-
+    # --- Focus Queries ---
+    subparsers.add_parser("get focused output", help="Details of the active output.")
+    subparsers.add_parser("get focused view", help="Details of the active view.")
     subparsers.add_parser(
-        "list inputs",
-        help="Lists all input devices currently available in the Wayfire environment",
+        "get focused workspace", help="Index of the active workspace."
     )
 
-    subparsers.add_parser(
-        "configure device",
-        help="Configure a device input from a give ID, wfctl configure device {device_id} {enable/disable}",
+    # --- Input & Keyboard ---
+    subparsers.add_parser("get keyboard", help="List layouts and active index.")
+
+    set_kb_parser = subparsers.add_parser(
+        "set keyboard", help="Switch layout by index."
     )
+    set_kb_parser.add_argument("index", type=int)
 
-    subparsers.add_parser(
-        "get option",
-        help="Get wayfire config value from a given option, wfctl get option section/option",
+    conf_dev_parser = subparsers.add_parser(
+        "configure device", help="Enable/Disable device."
     )
+    conf_dev_parser.add_argument("device_id", type=str)
+    conf_dev_parser.add_argument("status", choices=["enable", "disable"])
 
-    subparsers.add_parser(
-        "set option",
-        help="Set wayfire config value from the given options, wfctl set options section_1/option_1:value_1 section_2/option_2:value_2",
+    # --- Config & Plugins ---
+    get_opt_parser = subparsers.add_parser(
+        "get option", help="Get section/option value."
     )
+    get_opt_parser.add_argument("option", help="Format: section/option")
 
-    subparsers.add_parser(
-        "get keyboard",
-        help="Retrieve the current keyboard layout, variant, model and options.",
+    set_opt_parser = subparsers.add_parser(
+        "set option", help="Set section/option value."
     )
+    set_opt_parser.add_argument("pair", help="Format: section/option=value")
 
-    subparsers.add_parser(
-        "set keyboard", help="Set the keyboard layout, variant, model and options."
+    subparsers.add_parser("update plugins", help="Batch update Git-installed plugins.")
+
+    inst_plugin_parser = subparsers.add_parser(
+        "install plugin", help="Install from Git URL."
     )
+    inst_plugin_parser.add_argument("repo_url")
+    inst_plugin_parser.add_argument("plugin_name", nargs="?")
 
-    subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
-    subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
-    subparsers.add_parser(
-        "install plugin",
-        help="Install a third-party plugin from a GitHub repository URL.",
+    status_plugin_parser = subparsers.add_parser(
+        "status plugin", help="Check if plugin is active."
     )
+    status_plugin_parser.add_argument("plugin_name")
 
-    args = parser.parse_args()
+    # --- Advanced ---
+    create_out_parser = subparsers.add_parser(
+        "create output", help="Create headless display."
+    )
+    create_out_parser.add_argument("width", type=int)
+    create_out_parser.add_argument("height", type=int)
 
-    if args.command is None:
+    reg_bind_parser = subparsers.add_parser(
+        "register binding", help="Map dynamic hotkey."
+    )
+    reg_bind_parser.add_argument("key", help="e.g., <alt>KEY_T")
+    reg_bind_parser.add_argument("shell_cmd")
+
+    subparsers.add_parser("search views", help="Search windows by property/value.")
+    subparsers.add_parser("-m", help="Monitor real-time IPC events.")
+
+    # Handle help output
+    if len(sys.argv) == 1:
         parser.print_help()
+        sys.exit(0)
+
+    # execution is handled by the command_map dispatcher
+    try:
+        parser.parse_known_args()
+    except argparse.ArgumentError:
+        sys.exit(1)
