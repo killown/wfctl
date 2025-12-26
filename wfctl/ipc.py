@@ -381,10 +381,34 @@ def handle_install_plugin(command: str) -> None:
         print(f"Installation failed: {e}")
 
 
+def handle_check_abi(command: str) -> None:
+    """
+    Handle 'check abi {path}'
+    Example: wfctl check abi /usr/lib/wayfire/libalpha.so
+    """
+    parts = command.split()
+    if len(parts) < 3:
+        print("Error: Usage: check abi {path}")
+        return
+
+    full_path = parts[2]
+    try:
+        res = sock.send_json(
+            {
+                "method": "wayfire/get-plugin-abi-version",
+                "data": {"path": full_path},
+            }
+        )
+        # Format and print your ABI result here...
+        print(json.dumps(res, indent=4))
+    except Exception as e:
+        print(f"Error checking ABI: {e}")
+
+
 def handle_list_plugins() -> None:
     """
     Handle the 'list plugins' command.
-    Reverted to hardcoded metadata path discovery.
+    Checks ABI compatibility and whether the plugin is currently enabled in Wayfire.
     """
     plugin_path = os.getenv("WAYFIRE_PLUGIN_PATH")
     if not plugin_path:
@@ -399,6 +423,14 @@ def handle_list_plugins() -> None:
     if not os.path.isdir(local_metadata_dir):
         print(f"Error: Metadata directory not found at {local_metadata_dir}")
         return
+
+    enabled_plugins_list = []
+    try:
+        plugins_val = sock.get_option_value("core/plugins")
+        if plugins_val and isinstance(plugins_val, str):
+            enabled_plugins_list = plugins_val.split()
+    except Exception:
+        pass
 
     abi_report = {}
     search_paths = plugin_path.split(":")
@@ -421,8 +453,10 @@ def handle_list_plugins() -> None:
                 except Exception:
                     continue
 
-    print(f"{'PLUGIN':<25} {'VERSION':<12} {'STATUS':<10} {'DESCRIPTION'}")
-    print("-" * 144)
+    print(
+        f"{'PLUGIN':<25} {'VERSION':<12} {'STATUS':<10} {'STATE':<10} {'DESCRIPTION'}"
+    )
+    print("-" * 155)
 
     for xml_file in os.listdir(local_metadata_dir):
         if not xml_file.endswith(".xml"):
@@ -447,13 +481,14 @@ def handle_list_plugins() -> None:
 
             status = "Unknown"
             version = "N/A"
+            state = "ENABLED" if p_name in enabled_plugins_list else "DISABLED"
 
             if abi_info:
                 version = str(abi_info.get("plugin_abi_version", "N/A"))
                 status = "Updated" if abi_info.get("compatible") else "OUTDATED"
 
             print(
-                f"{p_name:<25} {version:<12} {status:<10} {desc[:64].strip()}.".strip()
+                f"{p_name:<25} {version:<12} {status:<10} {state:<10} {desc[:64].strip()}.".strip()
             )
 
         except Exception:
@@ -851,6 +886,7 @@ def audit_plugins_abi(search_paths: list[str] | None = None) -> dict:
 # Define command mapping to corresponding handler functions
 command_map = {
     "audit plugins": audit_plugins_abi,
+    "check abi": handle_check_abi,
     "close view": handle_close_view,
     "configure device": handle_configure_device,
     "create output": handle_create_output,
