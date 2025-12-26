@@ -62,10 +62,6 @@ def usage() -> None:
     )
     subparsers.add_parser("get keyboard", help="List layouts and active index.")
 
-    subparsers.add_parser(
-        "get log path", help="Retrieve current stdout redirection path."
-    )
-
     get_opt_parser = subparsers.add_parser(
         "get option", help="Get section/option value."
     )
