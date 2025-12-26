@@ -6,6 +6,7 @@ import subprocess
 import os
 import re
 import tempfile
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from wayfire import WayfireSocket
 from wayfire.extra.ipc_utils import WayfireUtils
@@ -208,116 +209,168 @@ def find_wayfire_plugin_directories(root_path: str) -> list:
     return plugin_dirs
 
 
+def record_plugin_metadata(plugin_name: str, repo_url: str, install_root: str) -> None:
+    """
+    Records installation details to a JSON file for future management.
+
+    This function creates a manifest in ~/.local/share/wayfire/installed-plugins/
+    containing the source URL, installation date, and filesystem prefix.
+    """
+    registry_dir = os.path.expanduser("~/.local/share/wayfire/installed-plugins")
+    os.makedirs(registry_dir, exist_ok=True)
+
+    metadata_path = os.path.join(registry_dir, f"{plugin_name}.json")
+
+    payload = {
+        "name": plugin_name,
+        "source": repo_url,
+        "install_date": datetime.now().isoformat(),
+        "prefix": install_root,
+        "managed_by": "wfctl",
+    }
+
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=4)
+
+
+def _install_from_source(
+    repo_url: str, plugin_name: str, local_install_root: str, local_metadata_dir: str
+) -> None:
+    """
+    Core logic to clone, patch, build, and install a Wayfire plugin.
+
+    This is shared between 'install' and 'update' commands to ensure consistent
+    build environments and patching logic.
+    """
+    build_dir = "build"
+
+    with tempfile.TemporaryDirectory(prefix="wfctl_", dir="/tmp") as tmp_dir:
+        clone_path = os.path.join(tmp_dir, "repo_clone")
+        subprocess.run(
+            ["git", "clone", "--depth", "1", repo_url, clone_path], check=True
+        )
+
+        # Determine which directories to build
+        specific_dir = find_specific_plugin_directory(clone_path, plugin_name)
+        project_dirs = (
+            [specific_dir]
+            if specific_dir
+            else find_wayfire_plugin_directories(clone_path)
+        )
+
+        if not project_dirs:
+            print(f"Warning: No valid Wayfire plugin project found for {plugin_name}")
+            return
+
+        for project_dir in project_dirs:
+            original_dir = os.getcwd()
+            try:
+                os.chdir(project_dir)
+
+                # --- Patch metadata/meson.build ---
+                metadata_src_dir = os.path.join(project_dir, "metadata")
+                meson_build_file = os.path.join(metadata_src_dir, "meson.build")
+
+                if os.path.exists(meson_build_file):
+                    with open(meson_build_file, "r") as f:
+                        lines = f.readlines()
+                    lines = [line for line in lines if "install_data" not in line]
+
+                    xml_files = [
+                        f for f in os.listdir(metadata_src_dir) if f.endswith(".xml")
+                    ]
+                    if xml_files:
+                        xml_file = xml_files[0]
+                        lines.append(
+                            f"install_data('{xml_file}', install_dir: '{local_metadata_dir}')\n"
+                        )
+                        with open(meson_build_file, "w") as f:
+                            f.writelines(lines)
+
+                # --- Build and Install ---
+                meson_cmd = [
+                    "meson",
+                    "setup",
+                    build_dir,
+                    f"--prefix={local_install_root}",
+                    "--libdir=lib",
+                    "--datadir=share",
+                    "--buildtype=release",
+                ]
+                subprocess.run(meson_cmd, check=True)
+                subprocess.run(["ninja", "-C", build_dir], check=True)
+                subprocess.run(["ninja", "-C", build_dir, "install"], check=True)
+
+                # --- Update Registry ---
+                record_plugin_metadata(plugin_name, repo_url, local_install_root)
+            finally:
+                os.chdir(original_dir)
+
+
+def handle_update_plugins() -> None:
+    """
+    Handle the 'update plugins' command.
+
+    Iterates through all JSON files in the local registry, pulls the latest
+    source code from their recorded URLs, and re-installs them.
+    """
+    registry_dir = os.path.expanduser("~/.local/share/wayfire/installed-plugins")
+    if not os.path.exists(registry_dir):
+        print("No plugins installed via wfctl registry found.")
+        return
+
+    home_dir = os.path.expanduser("~")
+    local_install_root = os.path.join(home_dir, ".local")
+    local_metadata_dir = os.path.join(local_install_root, "share/wayfire/metadata")
+
+    for filename in os.listdir(registry_dir):
+        if filename.endswith(".json"):
+            metadata_path = os.path.join(registry_dir, filename)
+            try:
+                with open(metadata_path, "r") as f:
+                    data = json.load(f)
+
+                plugin_name = data.get("name")
+                repo_url = data.get("source")
+
+                if not repo_url:
+                    continue
+
+                print(f"--- Updating plugin: {plugin_name} ---")
+                _install_from_source(
+                    repo_url, plugin_name, local_install_root, local_metadata_dir
+                )
+                print(f"Successfully updated {plugin_name}\n")
+
+            except Exception as e:
+                print(f"Failed to update {filename}: {e}")
+
+
 def handle_install_plugin(command: str) -> None:
-    """
-    Handle the 'install plugin' command.
-    Installs plugin(s) from a given GitHub repository URL.
-    Optionally, specify a plugin name to target a specific subdirectory.
-    The repository is cloned into a unique temporary directory and cleaned up afterward.
-    Examples:
-        wfctl install plugin https://github.com/killown/wayfire-plugins hide-view
-        wfctl install plugin https://github.com/killown/wayfire-plugins
-    """
+    """Handle the 'install plugin' command."""
     parts = command.split()
     if len(parts) < 3:
         print("Error: Please provide a GitHub repository URL.")
         return
 
     repo_url = parts[2]
-    plugin_name = parts[3] if len(parts) > 3 else None
+    plugin_name = (
+        parts[3] if len(parts) > 3 else repo_url.split("/")[-1].replace(".git", "")
+    )
 
-    # Define the user's local installation root
     home_dir = os.path.expanduser("~")
     local_install_root = os.path.join(home_dir, ".local")
+    local_metadata_dir = os.path.join(local_install_root, "share/wayfire/metadata")
 
-    # The build directory (will be relative to each meson project dir)
-    build_dir = "build"
+    os.makedirs(local_metadata_dir, exist_ok=True)
 
-    # Create a unique temporary directory for cloning
-    with tempfile.TemporaryDirectory(prefix="wfctl_", dir="/tmp") as tmp_dir:
-        print(f"Created temporary directory: {tmp_dir}")
-
-        try:
-            clone_path = os.path.join(tmp_dir, "repo_clone")
-            print(f"Cloning repository: {repo_url} into {clone_path}")
-            subprocess.run(["git", "clone", repo_url, clone_path], check=True)
-
-            project_dirs = []
-
-            if plugin_name:
-                # User specified a plugin name, search for that exact directory
-                print(f"Searching for plugin directory: {plugin_name}")
-                specific_dir = find_specific_plugin_directory(clone_path, plugin_name)
-                if specific_dir:
-                    project_dirs = [specific_dir]
-                    print(f"Found plugin directory: {specific_dir}")
-                else:
-                    print(
-                        f"Error: Could not find a directory named '{plugin_name}' containing a meson.build file."
-                    )
-                    return
-            else:
-                # No plugin name specified, find all Wayfire plugin projects
-                project_dirs = find_wayfire_plugin_directories(clone_path)
-                if not project_dirs:
-                    print("Error: No Wayfire plugin projects found in the repository.")
-                    return
-
-                print(f"Found {len(project_dirs)} Wayfire plugin project(s):")
-                for d in project_dirs:
-                    print(f"  - {d}")
-
-            # Install each identified project directory
-            for project_dir in project_dirs:
-                print(f"\n--- Installing plugin project from: {project_dir} ---")
-                original_dir = os.getcwd()
-                try:
-                    os.chdir(project_dir)
-
-                    print("Configuring build with Meson...")
-                    # Configure Meson with the user's local prefix
-                    meson_cmd = [
-                        "meson",
-                        "setup",
-                        build_dir,
-                        f"--prefix={local_install_root}",
-                        "--buildtype=release",
-                    ]
-                    subprocess.run(meson_cmd, check=True)
-
-                    print("Compiling with Ninja...")
-                    subprocess.run(["ninja", "-C", build_dir], check=True)
-
-                    print("Installing...")
-                    env = os.environ.copy()
-                    env["DESTDIR"] = ""
-
-                    subprocess.run(
-                        ["ninja", "-C", build_dir, "install"], env=env, check=True
-                    )
-
-                    print(
-                        f"Plugin project installed successfully to {local_install_root}"
-                    )
-
-                except subprocess.CalledProcessError as e:
-                    print(f"Installation failed for {project_dir}: {e}")
-                except Exception as e:
-                    print(f"An unexpected error occurred for {project_dir}: {e}")
-                finally:
-                    os.chdir(original_dir)
-
-            print("\nAll plugin projects installed successfully.")
-            print("You may need to restart Wayfire for it to detect the new plugins.")
-            print("To enable a specific plugin, use: wfctl enable plugin <plugin_name>")
-
-        except subprocess.CalledProcessError as e:
-            print(f"Installation failed during step: {e.cmd}")
-            print(f"Return code: {e.returncode}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-        finally:
-            print(f"Temporary directory {tmp_dir} has been removed.")
+    try:
+        _install_from_source(
+            repo_url, plugin_name, local_install_root, local_metadata_dir
+        )
+        print(f"Installation of {plugin_name} complete.")
+    except Exception as e:
+        print(f"Installation failed: {e}")
 
 
 def handle_get_view(command: str) -> None:
@@ -491,6 +544,7 @@ command_map = {
     "close view": handle_close_view,
     "minimize view": handle_minimize_view,
     "maximize view": handle_maximize_view,
+    "update plugins": handle_update_plugins,
     "set view alpha": handle_set_view_alpha,
     "list inputs": handle_list_inputs,
     "configure device": handle_configure_device,
