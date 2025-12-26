@@ -42,7 +42,7 @@ pip install -e .
 | **move view**              | Move window to specific coordinates.          | `wfctl move view 15 100 150`                        |
 | **move view to workspace** | Send window to a different workspace grid.    | `wfctl move view to workspace 15 1 1`               |
 | **next workspace**         | Cycle to the next workspace.                  | `wfctl next workspace`                              |
-| **register binding**       | Create a dynamic global hotkey.               | `wfctl register binding <alt>KEY_T kitty`           |
+| **register binding**       | Create a dynamic global hotkey.               | `wfctl register binding "<alt>KEY_T" "kitty"`       |
 | **resize view**            | Change window dimensions.                     | `wfctl resize view 12 800 600`                      |
 | **search views**           | Filter views by property or value.            | `wfctl search views firefox app-id`                 |
 | **set keyboard**           | Switch keyboard layout by index.              | `wfctl set keyboard 1`                              |
