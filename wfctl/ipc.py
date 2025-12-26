@@ -568,6 +568,48 @@ def handle_set_keyboard(command: str) -> None:
         print(f"Error: {e}")
 
 
+def handle_list_config(command: str) -> None:
+    """
+    Handle the 'list config' command.
+
+    Queries the live Wayfire configuration state.
+    """
+    try:
+        response = sock.list_config_options()
+        if response.get("result") != "ok":
+            print("Error: Compositor communication failed.")
+            return
+
+        all_config = response.get("options", {})
+        parts = command.split()
+
+        if len(parts) > 2:
+            query = parts[2].lower()
+            filtered_config = {}
+
+            for section, options in all_config.items():
+                # Check if the query is in the section name
+                section_match = query in section.lower()
+
+                # Check if the query is in any of the keys (only if options is not None)
+                key_match = False
+                if options is not None:
+                    key_match = any(query in opt.lower() for opt in options.keys())
+
+                if section_match or key_match:
+                    filtered_config[section] = options
+
+            all_config = filtered_config
+
+        if not all_config:
+            print(f"No config matches found for: {parts[2]}")
+            return
+
+        print(json.dumps(all_config, indent=4, ensure_ascii=False))
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
     "list views": handle_list_views,
@@ -590,6 +632,7 @@ command_map = {
     "update plugins": handle_update_plugins,
     "set view alpha": handle_set_view_alpha,
     "list inputs": handle_list_inputs,
+    "list config": handle_list_config,
     "configure device": handle_configure_device,
     "get option": handle_get_option,
     "set option": handle_set_option,
