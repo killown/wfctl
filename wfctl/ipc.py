@@ -610,6 +610,38 @@ def handle_list_config(command: str) -> None:
         print(f"Error: {e}")
 
 
+def handle_move_view_to_workspace(command: str) -> None:
+    """
+    Handle the 'move view to workspace' command.
+
+    Relocates a specific view to the target workspace coordinates.
+    Usage: wfctl move view to workspace {view_id} {x} {y}
+    """
+    try:
+        parts = command.split()
+        if len(parts) < 6:
+            print(
+                "Error: Missing arguments. Usage: wfctl move view to workspace {id} {x} {y}"
+            )
+            return
+
+        view_id = int(parts[4])
+        ws_x = int(parts[5])
+        ws_y = int(parts[6])
+
+        result = sock.send_view_to_workspace(view_id, ws_x, ws_y)
+
+        if result.get("result") == "ok":
+            print(f"View {view_id} sent to workspace ({ws_x}, {ws_y})")
+        else:
+            print(f"Compositor error: {result}")
+
+    except ValueError:
+        print("Error: View ID and workspace coordinates must be integers.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
     "list views": handle_list_views,
@@ -640,6 +672,7 @@ command_map = {
     "disable plugin": lambda command: handle_plugin_action(command, "disable"),
     "status plugin": lambda command: handle_plugin_action(command, "status"),
     "install plugin": handle_install_plugin,
+    "move view to workspace": handle_move_view_to_workspace,
 }
 
 
