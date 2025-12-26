@@ -1,27 +1,24 @@
-import argparse
-import sys
-
-
 def usage() -> None:
     """
     Generate and display the help documentation for wfctl.
-
-    This function uses argparse to define the CLI interface, matching the
-    internal command_map routing logic.
+    Commands are sorted alphabetically for improved UX.
     """
+    import argparse
+    import sys
+
     parser = argparse.ArgumentParser(
         description="wfctl: An advanced lifecycle and state management utility for the Wayfire Compositor."
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    # --- Sorted Command Definitions ---
+
     audit_plugins_parser = subparsers.add_parser(
         "audit plugins", help="Check for outdated plugins binary compatibility (ABI)."
     )
     audit_plugins_parser.add_argument(
-        "path",
-        nargs="?",
-        help="Optional directory to scan (e.g., ~/.local/share/wayfire).",
+        "path", nargs="?", help="Optional directory to scan."
     )
 
     check_abi_parser = subparsers.add_parser(
@@ -30,7 +27,7 @@ def usage() -> None:
     check_abi_parser.add_argument("path", help="Path to the .so plugin file.")
 
     close_view_parser = subparsers.add_parser("close view", help="Close a view by ID.")
-    close_view_parser.add_argument("view_id", type=int, help="Target view ID.")
+    close_view_parser.add_argument("view_id", type=int)
 
     conf_dev_parser = subparsers.add_parser(
         "configure device", help="Enable/Disable device."
@@ -38,12 +35,7 @@ def usage() -> None:
     conf_dev_parser.add_argument("device_id", type=str)
     conf_dev_parser.add_argument("status", choices=["enable", "disable"])
 
-    create_out_parser = subparsers.add_parser(
-        "create output", help="Create headless display."
-    )
-    create_out_parser.add_argument("width", type=int)
-    create_out_parser.add_argument("height", type=int)
-
+    subparsers.add_parser("create output", help="Create headless display.")
     subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
     subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
 
@@ -51,9 +43,7 @@ def usage() -> None:
         "fullscreen view", help="Set fullscreen state."
     )
     fullscreen_view_parser.add_argument("view_id", type=int)
-    fullscreen_view_parser.add_argument(
-        "state", choices=["true", "false"], help="True to enable, False to disable."
-    )
+    fullscreen_view_parser.add_argument("state", choices=["true", "false"])
 
     subparsers.add_parser("get focused output", help="Details of the active output.")
     subparsers.add_parser("get focused view", help="Details of the active view.")
@@ -61,6 +51,9 @@ def usage() -> None:
         "get focused workspace", help="Index of the active workspace."
     )
     subparsers.add_parser("get keyboard", help="List layouts and active index.")
+    subparsers.add_parser(
+        "get log path", help="Retrieve current stdout redirection path."
+    )
 
     get_opt_parser = subparsers.add_parser(
         "get option", help="Get section/option value."
@@ -81,14 +74,15 @@ def usage() -> None:
     list_config_parser = subparsers.add_parser(
         "list config", help="List live configuration options."
     )
-    list_config_parser.add_argument(
-        "filter", nargs="?", help="Optional substring to filter sections or keys."
-    )
+    list_config_parser.add_argument("filter", nargs="?", help="Substring filter.")
 
     subparsers.add_parser("list inputs", help="List all connected input devices.")
     subparsers.add_parser("list outputs", help="List all physical and virtual outputs.")
+    subparsers.add_parser(
+        "list plugins", help="Show all installed plugins and their status."
+    )
     subparsers.add_parser("list views", help="List all views currently available.")
-    subparsers.add_parser("list wsets", help="List all workspace sets (output groups).")
+    subparsers.add_parser("list wsets", help="List all workspace sets.")
 
     subparsers.add_parser("-m", help="Monitor real-time IPC events.")
 
@@ -111,7 +105,7 @@ def usage() -> None:
     move_view_parser.add_argument("y", type=int)
 
     mv_ws_parser = subparsers.add_parser(
-        "move view to workspace", help="Send view to workspace coordinates."
+        "move view to workspace", help="Send view to workspace."
     )
     mv_ws_parser.add_argument("view_id", type=int)
     mv_ws_parser.add_argument("x", type=int)
@@ -122,7 +116,7 @@ def usage() -> None:
     reg_bind_parser = subparsers.add_parser(
         "register binding", help="Map dynamic hotkey."
     )
-    reg_bind_parser.add_argument("key", help="e.g., <alt>KEY_T")
+    reg_bind_parser.add_argument("key")
     reg_bind_parser.add_argument("shell_cmd")
 
     resize_view_parser = subparsers.add_parser(
@@ -144,18 +138,14 @@ def usage() -> None:
     )
     set_opt_parser.add_argument("pair", help="Format: section/option=value")
 
-    set_alpha_parser = subparsers.add_parser(
-        "set view alpha", help="Set transparency (0.0 - 1.0)."
-    )
+    set_alpha_parser = subparsers.add_parser("set view alpha", help="Set transparency.")
     set_alpha_parser.add_argument("view_id", type=int)
     set_alpha_parser.add_argument("alpha", type=float)
 
     set_ws_parser = subparsers.add_parser(
         "set workspace", help="Switch current workspace."
     )
-    set_ws_parser.add_argument(
-        "index", type=int, help="Workspace index from total list."
-    )
+    set_ws_parser.add_argument("index", type=int)
 
     status_plugin_parser = subparsers.add_parser(
         "status plugin", help="Check if plugin is active."
@@ -164,13 +154,11 @@ def usage() -> None:
 
     subparsers.add_parser("update plugins", help="Batch update Git-installed plugins.")
 
-    # Handle help output
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(0)
 
-    # execution is handled by the command_map dispatcher
     try:
         parser.parse_known_args()
-    except argparse.ArgumentError:
+    except (argparse.ArgumentError, argparse.ArgumentTypeError):
         sys.exit(1)
