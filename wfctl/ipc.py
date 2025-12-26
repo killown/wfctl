@@ -408,8 +408,12 @@ def handle_check_abi(command: str) -> None:
 def handle_list_plugins() -> None:
     """
     Handle the 'list plugins' command.
-    Checks ABI compatibility and whether the plugin is currently enabled in Wayfire.
+    Checks ABI compatibility and queries core/plugins['value'] for enabled state.
     """
+    import os
+    import re
+    import sys
+
     plugin_path = os.getenv("WAYFIRE_PLUGIN_PATH")
     if not plugin_path:
         print("Error: WAYFIRE_PLUGIN_PATH must be set.")
@@ -424,11 +428,12 @@ def handle_list_plugins() -> None:
         print(f"Error: Metadata directory not found at {local_metadata_dir}")
         return
 
+    # Correctly retrieve the list of enabled plugins from the 'value' key
     enabled_plugins_list = []
     try:
-        plugins_val = sock.get_option_value("core/plugins")
-        if plugins_val and isinstance(plugins_val, str):
-            enabled_plugins_list = plugins_val.split()
+        response = sock.get_option_value("core/plugins")
+        if response and "value" in response:
+            enabled_plugins_list = response["value"].split()
     except Exception:
         pass
 
@@ -453,12 +458,12 @@ def handle_list_plugins() -> None:
                 except Exception:
                     continue
 
-    print(
-        f"{'PLUGIN':<25} {'VERSION':<12} {'STATUS':<10} {'STATE':<10} {'DESCRIPTION'}"
-    )
-    print("-" * 155)
+    header = f"{'PLUGIN':<22} | {'VER':<8} | {'STATUS':<10} | {'STATE':<10} | {'DESCRIPTION'}"
+    separator = "-" * len(header)
+    print(header)
+    print(separator)
 
-    for xml_file in os.listdir(local_metadata_dir):
+    for xml_file in sorted(os.listdir(local_metadata_dir)):
         if not xml_file.endswith(".xml"):
             continue
 
@@ -479,16 +484,20 @@ def handle_list_plugins() -> None:
             so_name = f"lib{p_name}.so"
             abi_info = abi_report.get(so_name)
 
-            status = "Unknown"
+            status = "MISSING"
             version = "N/A"
             state = "ENABLED" if p_name in enabled_plugins_list else "DISABLED"
 
             if abi_info:
                 version = str(abi_info.get("plugin_abi_version", "N/A"))
-                status = "Updated" if abi_info.get("compatible") else "OUTDATED"
+                status = "OK" if abi_info.get("compatible") else "OUTDATED"
+
+            clean_desc = desc.replace("\n", " ").strip()
+            if len(clean_desc) > 50:
+                clean_desc = clean_desc[:72] + "..."
 
             print(
-                f"{p_name:<25} {version:<12} {status:<10} {state:<10} {desc[:64].strip()}.".strip()
+                f"{p_name:<22} | {version:<8} | {status:<10} | {state:<10} | {clean_desc}"
             )
 
         except Exception:
@@ -799,10 +808,18 @@ def handle_register_binding(command: str) -> None:
 def handle_get_log_path(command: str) -> None:
     """
     Handle the 'get log path' command.
-    Retrieves the current stdout redirection path from the compositor.
+    Checks for method existence before querying the compositor.
     """
+    method_name = "wayfire/get-stdout-redirect-path"
+
     try:
-        res = sock.send_json({"method": "wayfire/get-stdout-redirect-path", "data": {}})
+        if method_name not in sock.list_methods():
+            print(
+                "Error: Command not enabled. Please install or enable the 'ipc-extra' plugin."
+            )
+            return
+
+        res = sock.send_json({"method": method_name, "data": {}})
 
         path = res.get("path")
         if path:
@@ -811,7 +828,7 @@ def handle_get_log_path(command: str) -> None:
             print("No log redirection path defined or active.")
 
     except Exception as e:
-        print(f"Error retrieving log path: {e}")
+        print(f"Error communicating with compositor: {e}")
 
 
 def audit_plugins_abi(search_paths: list[str] | None = None) -> dict:
