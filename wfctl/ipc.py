@@ -527,6 +527,47 @@ def handle_plugin_action(command: str, action: str) -> None:
         print(f"Error: {e}")
 
 
+def handle_get_keyboard() -> None:
+    """
+    Handle the 'get keyboard' command.
+
+    Queries the compositor for possible layouts and the currently active index,
+    returning a structured JSON representation of the keyboard state.
+    """
+    try:
+        layout_data = sock.get_keyboard_layout()
+        print(json.dumps(layout_data, indent=4, ensure_ascii=False))
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def handle_set_keyboard(command: str) -> None:
+    """
+    Handle the 'set keyboard' command.
+
+    Accepts an integer index to switch the active keyboard layout.
+    Example: wfctl set keyboard 1
+    """
+    try:
+        parts = command.split()
+        if len(parts) < 3:
+            print("Error: Please provide a layout index.")
+            return
+
+        index = int(parts[2])
+        result = sock.set_keyboard_layout(index)
+
+        if result.get("result") == "ok":
+            print(f"Keyboard layout changed to index {index}")
+        else:
+            print(f"Compositor returned an error: {result}")
+
+    except ValueError:
+        print("Error: Layout index must be an integer.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
     "list views": handle_list_views,
@@ -536,6 +577,8 @@ command_map = {
     "get focused output": handle_get_focused_output,
     "get focused view": handle_get_focused_view,
     "get focused workspace": handle_get_focused_workspace,
+    "get keyboard": handle_get_keyboard,
+    "set keyboard": handle_set_keyboard,
     "next workspace": handle_next_workspace,
     "fullscreen view": handle_fullscreen_view,
     "get view": handle_get_view,
