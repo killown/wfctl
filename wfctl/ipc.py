@@ -310,9 +310,7 @@ def _install_from_source(
 def handle_update_plugins() -> None:
     """
     Handle the 'update plugins' command.
-
-    Iterates through all JSON files in the local registry, pulls the latest
-    source code from their recorded URLs, and re-installs them.
+    Uses hardcoded ~/.local logic for metadata.
     """
     registry_dir = os.path.expanduser("~/.local/share/wayfire/installed-plugins")
     if not os.path.exists(registry_dir):
@@ -381,6 +379,85 @@ def handle_install_plugin(command: str) -> None:
         print(f"Metadata: {local_metadata_dir}")
     except Exception as e:
         print(f"Installation failed: {e}")
+
+
+def handle_list_plugins() -> None:
+    """
+    Handle the 'list plugins' command.
+    Reverted to hardcoded metadata path discovery.
+    """
+    plugin_path = os.getenv("WAYFIRE_PLUGIN_PATH")
+    if not plugin_path:
+        print("Error: WAYFIRE_PLUGIN_PATH must be set.")
+        sys.exit(1)
+
+    target_plugin_dir = plugin_path.split(":")[0]
+    local_metadata_dir = os.path.abspath(
+        os.path.join(target_plugin_dir, "../../share/wayfire/metadata")
+    )
+
+    if not os.path.isdir(local_metadata_dir):
+        print(f"Error: Metadata directory not found at {local_metadata_dir}")
+        return
+
+    abi_report = {}
+    search_paths = plugin_path.split(":")
+    for path in search_paths:
+        path = os.path.abspath(os.path.expanduser(path))
+        if not os.path.isdir(path):
+            continue
+
+        for f in os.listdir(path):
+            if f.endswith(".so"):
+                full_path = os.path.join(path, f)
+                try:
+                    res = sock.send_json(
+                        {
+                            "method": "wayfire/get-plugin-abi-version",
+                            "data": {"path": full_path},
+                        }
+                    )
+                    abi_report[f] = res
+                except Exception:
+                    continue
+
+    print(f"{'PLUGIN':<25} {'VERSION':<12} {'STATUS':<10} {'DESCRIPTION'}")
+    print("-" * 144)
+
+    for xml_file in os.listdir(local_metadata_dir):
+        if not xml_file.endswith(".xml"):
+            continue
+
+        xml_path = os.path.join(local_metadata_dir, xml_file)
+        try:
+            with open(xml_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            p_name_match = re.search(r'<plugin name="([^"]+)">', content)
+            desc_match = re.search(r"<_long>(.*?)</_long>", content, re.DOTALL)
+
+            if not p_name_match:
+                continue
+
+            p_name = p_name_match.group(1)
+            desc = desc_match.group(1).strip() if desc_match else "No description"
+
+            so_name = f"lib{p_name}.so"
+            abi_info = abi_report.get(so_name)
+
+            status = "Unknown"
+            version = "N/A"
+
+            if abi_info:
+                version = str(abi_info.get("plugin_abi_version", "N/A"))
+                status = "Updated" if abi_info.get("compatible") else "OUTDATED"
+
+            print(
+                f"{p_name:<25} {version:<12} {status:<10} {desc[:64].strip()}.".strip()
+            )
+
+        except Exception:
+            continue
 
 
 def handle_get_view(command: str) -> None:
@@ -790,6 +867,7 @@ command_map = {
     "list config": handle_list_config,
     "list inputs": handle_list_inputs,
     "list outputs": handle_list_outputs,
+    "list plugins": handle_list_plugins,
     "list views": handle_list_views,
     "list wsets": handle_list_wsets,
     "maximize view": handle_maximize_view,
