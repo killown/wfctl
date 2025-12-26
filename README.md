@@ -15,35 +15,38 @@ pip install -e .
 
 ## Commands
 
-| Command                | Description                                                                            |
-| :--------------------- | :------------------------------------------------------------------------------------- |
-| -m                     | Watch Wayfire IPC events.                                                              |
-| close view             | Close a view using a given {view_id}.                                                  |
-| configure device       | Configure a device input: `wfctl configure device {device_id} {enable/disable}`.       |
-| disable plugin         | Disable a plugin by its name.                                                          |
-| enable plugin          | Enable a plugin by its name.                                                           |
-| fullscreen view        | Set the fullscreen state of a view: `wfctl fullscreen view {view_id} {true/false}`.    |
-| get focused output     | Get the currently focused output.                                                      |
-| get focused view       | Get the currently focused view.                                                        |
-| get focused workspace  | Get the currently focused workspace index.                                             |
-| get keyboard           | Retrieve the current keyboard layout, variant, model and options.                      |
-| get option             | Get Wayfire config value: `wfctl get option section/option`.                           |
-| get view               | Get information about a specific view using a given {view_id}.                         |
-| install plugin         | Install a plugin from Git: `wfctl install plugin {repo_url} [plugin_name]`.            |
-| list config            | List live configuration from wayfire.ini: `wfctl list config [filter]`.                |
-| list inputs            | Lists all input devices currently available.                                           |
-| list outputs           | List all outputs connected to the system.                                              |
-| list views             | List all views currently available.                                                    |
-| maximize view          | Maximize a view from a given {view_id}.                                                |
-| minimize view          | Minimize a view: `wfctl minimize view {view_id} {true/false}`.                         |
-| move view              | Move a specific view: `wfctl move view {view_id} x-coordinate y-coordinate`.           |
-| move view to workspace | Move a view to a specific workspace: `wfctl move view to workspace {view_id} {x} {y}`. |
-| next workspace         | Switch to the next available workspace.                                                |
-| resize view            | Resize a specific view: `wfctl resize view {view_id} width height`.                    |
-| search views           | Search for views by value and optionally by key: `wfctl search views {value} [key]`.   |
-| set keyboard           | Set the keyboard layout by index: `wfctl set keyboard {index}`.                        |
-| set option             | Set Wayfire config value: `wfctl set option section/option=value`.                     |
-| set view alpha         | Set view transparency: `wfctl set view alpha {view_id} {0.4}`.                         |
-| set workspace          | Switch to a specific workspace using its index.                                        |
-| status plugin          | Check the status (enabled/disabled) of a specific plugin.                              |
-| update plugins         | Batch update all plugins installed via `wfctl` by rebuilding from source.              |
+| Command                    | Description                                   | Example Usage                                       |
+| :------------------------- | :-------------------------------------------- | :-------------------------------------------------- |
+| **-m**                     | Watch Wayfire IPC events in real-time.        | `wfctl -m`                                          |
+| **close view**             | Close a specific view by its ID.              | `wfctl close view 15`                               |
+| **configure device**       | Enable or disable a specific input device.    | `wfctl configure device 12 enable`                  |
+| **create output**          | Create a virtual headless display.            | `wfctl create output 1920 1080`                     |
+| **disable plugin**         | Deactivate a Wayfire plugin.                  | `wfctl disable plugin wobbly`                       |
+| **enable plugin**          | Activate a Wayfire plugin.                    | `wfctl enable plugin expo`                          |
+| **fullscreen view**        | Toggle or set fullscreen state.               | `wfctl fullscreen view 7 true`                      |
+| **get focused output**     | Show details of the active output.            | `wfctl get focused output`                          |
+| **get focused view**       | Show details of the active window.            | `wfctl get focused view`                            |
+| **get focused workspace**  | Get current workspace index.                  | `wfctl get focused workspace`                       |
+| **get keyboard**           | List layouts and active layout index.         | `wfctl get keyboard`                                |
+| **get option**             | Read a specific configuration value.          | `wfctl get option core/plugins`                     |
+| **get view**               | Get full JSON info for a specific view ID.    | `wfctl get view 12`                                 |
+| **install plugin**         | Build and install a plugin from Git.          | `wfctl install plugin https://github.com/user/repo` |
+| **list config**            | Search/list live configuration options.       | `wfctl list config blur`                            |
+| **list inputs**            | Show all connected input devices.             | `wfctl list inputs`                                 |
+| **list outputs**           | Show all active physical and virtual outputs. | `wfctl list outputs`                                |
+| **list views**             | Show all open windows and their properties.   | `wfctl list views`                                  |
+| **list wsets**             | List all workspace sets (output groups).      | `wfctl list wsets`                                  |
+| **maximize view**          | Maximize a specific window.                   | `wfctl maximize view 22`                            |
+| **minimize view**          | Minimize or restore a window.                 | `wfctl minimize view 22 true`                       |
+| **move view**              | Move window to specific coordinates.          | `wfctl move view 15 100 150`                        |
+| **move view to workspace** | Send window to a different workspace grid.    | `wfctl move view to workspace 15 1 1`               |
+| **next workspace**         | Cycle to the next workspace.                  | `wfctl next workspace`                              |
+| **register binding**       | Create a dynamic global hotkey.               | `wfctl register binding "<alt>KEY_T" "kitty"`       |
+| **resize view**            | Change window dimensions.                     | `wfctl resize view 12 800 600`                      |
+| **search views**           | Filter views by property or value.            | `wfctl search views firefox app-id`                 |
+| **set keyboard**           | Switch keyboard layout by index.              | `wfctl set keyboard 1`                              |
+| **set option**             | Change a config value at runtime.             | `wfctl set option core/vwidth=4`                    |
+| **set view alpha**         | Set window transparency (0.0 to 1.0).         | `wfctl set view alpha 12 0.8`                       |
+| **set workspace**          | Switch current workspace by index.            | `wfctl set workspace 2`                             |
+| **status plugin**          | Check if a plugin is currently active.        | `wfctl status plugin alpha`                         |
+| **update plugins**         | Rebuild all Git-installed plugins.            | `wfctl update plugins`                              |
