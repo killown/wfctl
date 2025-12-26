@@ -348,6 +348,18 @@ def handle_update_plugins() -> None:
 
 def handle_install_plugin(command: str) -> None:
     """Handle the 'install plugin' command."""
+    plugin_path_env = os.getenv("WAYFIRE_PLUGIN_PATH")
+
+    if not plugin_path_env:
+        print("Error: WAYFIRE_PLUGIN_PATH environment variable is not set.")
+        print("Plugins cannot be installed without a defined target path.")
+        sys.exit(1)
+
+    target_plugin_dir = plugin_path_env.split(":")[0]
+
+    local_install_root = os.path.abspath(os.path.join(target_plugin_dir, "../.."))
+    local_metadata_dir = os.path.join(local_install_root, "share/wayfire/metadata")
+
     parts = command.split()
     if len(parts) < 3:
         print("Error: Please provide a GitHub repository URL.")
@@ -358,10 +370,6 @@ def handle_install_plugin(command: str) -> None:
         parts[3] if len(parts) > 3 else repo_url.split("/")[-1].replace(".git", "")
     )
 
-    home_dir = os.path.expanduser("~")
-    local_install_root = os.path.join(home_dir, ".local")
-    local_metadata_dir = os.path.join(local_install_root, "share/wayfire/metadata")
-
     os.makedirs(local_metadata_dir, exist_ok=True)
 
     try:
@@ -369,6 +377,8 @@ def handle_install_plugin(command: str) -> None:
             repo_url, plugin_name, local_install_root, local_metadata_dir
         )
         print(f"Installation of {plugin_name} complete.")
+        print(f"Binary: {target_plugin_dir}")
+        print(f"Metadata: {local_metadata_dir}")
     except Exception as e:
         print(f"Installation failed: {e}")
 
