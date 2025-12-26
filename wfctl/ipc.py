@@ -796,6 +796,24 @@ def handle_register_binding(command: str) -> None:
         print("Error: Usage: register binding {key} {command}")
 
 
+def handle_get_log_path(command: str) -> None:
+    """
+    Handle the 'get log path' command.
+    Retrieves the current stdout redirection path from the compositor.
+    """
+    try:
+        res = sock.send_json({"method": "wayfire/get-stdout-redirect-path", "data": {}})
+
+        path = res.get("path")
+        if path:
+            print(path)
+        else:
+            print("No log redirection path defined or active.")
+
+    except Exception as e:
+        print(f"Error retrieving log path: {e}")
+
+
 def audit_plugins_abi(search_paths: list[str] | None = None) -> dict:
     """
     Audits Wayfire plugins for ABI compatibility across multiple paths.
@@ -897,6 +915,7 @@ command_map = {
     "get focused view": handle_get_focused_view,
     "get focused workspace": handle_get_focused_workspace,
     "get keyboard": handle_get_keyboard,
+    "get log path": handle_get_log_path,
     "get option": handle_get_option,
     "get view": handle_get_view,
     "install plugin": handle_install_plugin,
