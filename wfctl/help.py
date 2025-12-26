@@ -10,27 +10,42 @@ def usage() -> None:
     internal command_map routing logic.
     """
     parser = argparse.ArgumentParser(
-        description="wfctl: A high-performance controller for the Wayfire Compositor."
+        description="wfctl: An advanced lifecycle and state management utility for the Wayfire Compositor."
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # --- Information Gathering ---
-    subparsers.add_parser("list views", help="List all views currently available.")
-    subparsers.add_parser("list outputs", help="List all physical and virtual outputs.")
-    subparsers.add_parser("list inputs", help="List all connected input devices.")
-    subparsers.add_parser("list wsets", help="List all workspace sets (output groups).")
-
-    list_config_parser = subparsers.add_parser(
-        "list config", help="List live configuration options."
+    audit_plugins_parser = subparsers.add_parser(
+        "audit plugins", help="Check for outdated plugins binary compatibility (ABI)."
     )
-    list_config_parser.add_argument(
-        "filter", nargs="?", help="Optional substring to filter sections or keys."
+    audit_plugins_parser.add_argument(
+        "path",
+        nargs="?",
+        help="Optional directory to scan (e.g., ~/.local/share/wayfire).",
     )
 
-    # --- View Manipulation ---
+    check_abi_parser = subparsers.add_parser(
+        "check abi", help="Check plugin binary compatibility (ABI)."
+    )
+    check_abi_parser.add_argument("path", help="Path to the .so plugin file.")
+
     close_view_parser = subparsers.add_parser("close view", help="Close a view by ID.")
     close_view_parser.add_argument("view_id", type=int, help="Target view ID.")
+
+    conf_dev_parser = subparsers.add_parser(
+        "configure device", help="Enable/Disable device."
+    )
+    conf_dev_parser.add_argument("device_id", type=str)
+    conf_dev_parser.add_argument("status", choices=["enable", "disable"])
+
+    create_out_parser = subparsers.add_parser(
+        "create output", help="Create headless display."
+    )
+    create_out_parser.add_argument("width", type=int)
+    create_out_parser.add_argument("height", type=int)
+
+    subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
+    subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
 
     fullscreen_view_parser = subparsers.add_parser(
         "fullscreen view", help="Set fullscreen state."
@@ -40,10 +55,46 @@ def usage() -> None:
         "state", choices=["true", "false"], help="True to enable, False to disable."
     )
 
+    subparsers.add_parser("get focused output", help="Details of the active output.")
+    subparsers.add_parser("get focused view", help="Details of the active view.")
+    subparsers.add_parser(
+        "get focused workspace", help="Index of the active workspace."
+    )
+    subparsers.add_parser("get keyboard", help="List layouts and active index.")
+
+    subparsers.add_parser(
+        "get log path", help="Retrieve current stdout redirection path."
+    )
+
+    get_opt_parser = subparsers.add_parser(
+        "get option", help="Get section/option value."
+    )
+    get_opt_parser.add_argument("option", help="Format: section/option")
+
     get_view_parser = subparsers.add_parser(
         "get view", help="Get detailed info for a view."
     )
     get_view_parser.add_argument("view_id", type=int)
+
+    inst_plugin_parser = subparsers.add_parser(
+        "install plugin", help="Install from Git URL."
+    )
+    inst_plugin_parser.add_argument("repo_url")
+    inst_plugin_parser.add_argument("plugin_name", nargs="?")
+
+    list_config_parser = subparsers.add_parser(
+        "list config", help="List live configuration options."
+    )
+    list_config_parser.add_argument(
+        "filter", nargs="?", help="Optional substring to filter sections or keys."
+    )
+
+    subparsers.add_parser("list inputs", help="List all connected input devices.")
+    subparsers.add_parser("list outputs", help="List all physical and virtual outputs.")
+    subparsers.add_parser("list views", help="List all views currently available.")
+    subparsers.add_parser("list wsets", help="List all workspace sets (output groups).")
+
+    subparsers.add_parser("-m", help="Monitor real-time IPC events.")
 
     maximize_view_parser = subparsers.add_parser(
         "maximize view", help="Maximize a view."
@@ -63,27 +114,6 @@ def usage() -> None:
     move_view_parser.add_argument("x", type=int)
     move_view_parser.add_argument("y", type=int)
 
-    resize_view_parser = subparsers.add_parser(
-        "resize view", help="Change view dimensions."
-    )
-    resize_view_parser.add_argument("view_id", type=int)
-    resize_view_parser.add_argument("width", type=int)
-    resize_view_parser.add_argument("height", type=int)
-
-    set_alpha_parser = subparsers.add_parser(
-        "set view alpha", help="Set transparency (0.0 - 1.0)."
-    )
-    set_alpha_parser.add_argument("view_id", type=int)
-    set_alpha_parser.add_argument("alpha", type=float)
-
-    # --- Workspace & Spatial Management ---
-    set_ws_parser = subparsers.add_parser(
-        "set workspace", help="Switch current workspace."
-    )
-    set_ws_parser.add_argument(
-        "index", type=int, help="Workspace index from total list."
-    )
-
     mv_ws_parser = subparsers.add_parser(
         "move view to workspace", help="Send view to workspace coordinates."
     )
@@ -93,66 +123,50 @@ def usage() -> None:
 
     subparsers.add_parser("next workspace", help="Cycle to the next workspace.")
 
-    # --- Focus Queries ---
-    subparsers.add_parser("get focused output", help="Details of the active output.")
-    subparsers.add_parser("get focused view", help="Details of the active view.")
-    subparsers.add_parser(
-        "get focused workspace", help="Index of the active workspace."
-    )
-
-    # --- Input & Keyboard ---
-    subparsers.add_parser("get keyboard", help="List layouts and active index.")
-
-    set_kb_parser = subparsers.add_parser(
-        "set keyboard", help="Switch layout by index."
-    )
-    set_kb_parser.add_argument("index", type=int)
-
-    conf_dev_parser = subparsers.add_parser(
-        "configure device", help="Enable/Disable device."
-    )
-    conf_dev_parser.add_argument("device_id", type=str)
-    conf_dev_parser.add_argument("status", choices=["enable", "disable"])
-
-    # --- Config & Plugins ---
-    get_opt_parser = subparsers.add_parser(
-        "get option", help="Get section/option value."
-    )
-    get_opt_parser.add_argument("option", help="Format: section/option")
-
-    set_opt_parser = subparsers.add_parser(
-        "set option", help="Set section/option value."
-    )
-    set_opt_parser.add_argument("pair", help="Format: section/option=value")
-
-    subparsers.add_parser("update plugins", help="Batch update Git-installed plugins.")
-
-    inst_plugin_parser = subparsers.add_parser(
-        "install plugin", help="Install from Git URL."
-    )
-    inst_plugin_parser.add_argument("repo_url")
-    inst_plugin_parser.add_argument("plugin_name", nargs="?")
-
-    status_plugin_parser = subparsers.add_parser(
-        "status plugin", help="Check if plugin is active."
-    )
-    status_plugin_parser.add_argument("plugin_name")
-
-    # --- Advanced ---
-    create_out_parser = subparsers.add_parser(
-        "create output", help="Create headless display."
-    )
-    create_out_parser.add_argument("width", type=int)
-    create_out_parser.add_argument("height", type=int)
-
     reg_bind_parser = subparsers.add_parser(
         "register binding", help="Map dynamic hotkey."
     )
     reg_bind_parser.add_argument("key", help="e.g., <alt>KEY_T")
     reg_bind_parser.add_argument("shell_cmd")
 
+    resize_view_parser = subparsers.add_parser(
+        "resize view", help="Change view dimensions."
+    )
+    resize_view_parser.add_argument("view_id", type=int)
+    resize_view_parser.add_argument("width", type=int)
+    resize_view_parser.add_argument("height", type=int)
+
     subparsers.add_parser("search views", help="Search windows by property/value.")
-    subparsers.add_parser("-m", help="Monitor real-time IPC events.")
+
+    set_kb_parser = subparsers.add_parser(
+        "set keyboard", help="Switch layout by index."
+    )
+    set_kb_parser.add_argument("index", type=int)
+
+    set_opt_parser = subparsers.add_parser(
+        "set option", help="Set section/option value."
+    )
+    set_opt_parser.add_argument("pair", help="Format: section/option=value")
+
+    set_alpha_parser = subparsers.add_parser(
+        "set view alpha", help="Set transparency (0.0 - 1.0)."
+    )
+    set_alpha_parser.add_argument("view_id", type=int)
+    set_alpha_parser.add_argument("alpha", type=float)
+
+    set_ws_parser = subparsers.add_parser(
+        "set workspace", help="Switch current workspace."
+    )
+    set_ws_parser.add_argument(
+        "index", type=int, help="Workspace index from total list."
+    )
+
+    status_plugin_parser = subparsers.add_parser(
+        "status plugin", help="Check if plugin is active."
+    )
+    status_plugin_parser.add_argument("plugin_name")
+
+    subparsers.add_parser("update plugins", help="Batch update Git-installed plugins.")
 
     # Handle help output
     if len(sys.argv) == 1:
