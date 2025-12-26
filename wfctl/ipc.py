@@ -674,8 +674,96 @@ def handle_register_binding(command: str) -> None:
         print("Error: Usage: register binding {key} {command}")
 
 
+def audit_plugins_abi(search_paths: list[str] | None = None) -> dict:
+    """
+    Audits Wayfire plugins for ABI compatibility across multiple paths.
+
+    Checks paths provided in arguments, the WAYFIRE_PLUGIN_PATH env variable,
+    and the system default /usr/lib/wayfire.
+    """
+    if "wayfire/get-plugin-abi-version" not in sock.list_methods():
+        print("""Command not enabled, install/enable ipc-extra plugin: 
+                 wfctl install plugin https://github.com/killown/wayfire-plugins ipc-extra""")
+        sys.exit()
+
+    # Resolve all candidate paths
+    resolved_paths = []
+
+    # Add paths from function arguments
+    if search_paths:
+        resolved_paths.extend(search_paths)
+
+    # Add paths from Environment Variable
+    env_path = os.getenv("WAYFIRE_PLUGIN_PATH")
+    if env_path:
+        resolved_paths.extend(env_path.split(":"))
+
+    # Add default system path
+    resolved_paths.append("/usr/lib/wayfire")
+
+    # Filter for unique, existing directories
+    final_paths = []
+    for p in resolved_paths:
+        p = os.path.abspath(os.path.expanduser(p))
+        if os.path.isdir(p) and p not in final_paths:
+            final_paths.append(p)
+
+    report = {"compatible": [], "outdated": [], "failed": []}
+
+    for current_path in final_paths:
+        plugin_files = [f for f in os.listdir(current_path) if f.endswith(".so")]
+        if not plugin_files:
+            continue
+
+        print(f"Auditing {len(plugin_files)} binaries in {current_path}...")
+
+        for filename in plugin_files:
+            full_path = os.path.join(current_path, filename)
+            try:
+                res = sock.send_json(
+                    {
+                        "method": "wayfire/get-plugin-abi-version",
+                        "data": {"path": full_path},
+                    }
+                )
+
+                plugin_data = {
+                    "name": filename,
+                    "path": current_path,
+                    "plugin_abi": res.get("plugin_abi_version"),
+                    "core_abi": res.get("wayfire_abi_version"),
+                }
+
+                if res.get("compatible"):
+                    report["compatible"].append(plugin_data)
+                else:
+                    report["outdated"].append(plugin_data)
+
+            except Exception as e:
+                report["failed"].append({"name": filename, "error": str(e)})
+
+    # Summary Display
+    if report["outdated"]:
+        print("\nOUTDATED PLUGINS (Rebuild required):")
+        for p in report["outdated"]:
+            print(
+                f"  {p['name']} ({p['path']}): [Plugin: {p['plugin_abi']} | Core: {p['core_abi']}]"
+            )
+
+    if report["failed"]:
+        print("\nERRORS (Invalid binaries or IPC issues):")
+        for f in report["failed"]:
+            print(f"  {f['name']}: {f['error']}")
+
+    print(
+        f"\nAudit complete: {len(report['compatible'])} compatible, {len(report['outdated'])} outdated."
+    )
+    return report
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
+    "audit plugins": audit_plugins_abi,
     "close view": handle_close_view,
     "configure device": handle_configure_device,
     "create output": handle_create_output,
