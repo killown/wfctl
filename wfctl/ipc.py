@@ -642,37 +642,72 @@ def handle_move_view_to_workspace(command: str) -> None:
         print(f"Error: {e}")
 
 
+def handle_list_wsets() -> None:
+    """Handle the 'list wsets' command."""
+    s = sock.list_wsets()
+    print(json.dumps(s, indent=4))
+
+
+def handle_create_output(command: str) -> None:
+    """Handle 'create output {width} {height}'."""
+    try:
+        parts = command.split()
+        width, height = int(parts[2]), int(parts[3])
+        result = sock.create_headless_output(width, height)
+        print(f"Created headless output: {result}")
+    except (IndexError, ValueError):
+        print("Error: Usage: create output {width} {height}")
+
+
+def handle_register_binding(command: str) -> None:
+    """
+    Handle 'register binding {key_combo} {shell_command}'.
+    Example: wfctl register binding <super>KEY_T kitty
+    """
+    try:
+        parts = command.split()
+        binding = parts[2]
+        cmd = " ".join(parts[3:])
+        result = sock.register_binding(binding, command=cmd)
+        print(f"Binding registered: {result}")
+    except IndexError:
+        print("Error: Usage: register binding {key} {command}")
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
-    "list views": handle_list_views,
-    "list outputs": handle_list_outputs,
-    "search views": handle_search_views,
-    "set workspace": handle_set_workspace,
+    "close view": handle_close_view,
+    "configure device": handle_configure_device,
+    "create output": handle_create_output,
+    "disable plugin": lambda command: handle_plugin_action(command, "disable"),
+    "enable plugin": lambda command: handle_plugin_action(command, "enable"),
+    "fullscreen view": handle_fullscreen_view,
     "get focused output": handle_get_focused_output,
     "get focused view": handle_get_focused_view,
     "get focused workspace": handle_get_focused_workspace,
     "get keyboard": handle_get_keyboard,
-    "set keyboard": handle_set_keyboard,
-    "next workspace": handle_next_workspace,
-    "fullscreen view": handle_fullscreen_view,
-    "get view": handle_get_view,
-    "resize view": handle_resize_view,
-    "move view": handle_move_view,
-    "close view": handle_close_view,
-    "minimize view": handle_minimize_view,
-    "maximize view": handle_maximize_view,
-    "update plugins": handle_update_plugins,
-    "set view alpha": handle_set_view_alpha,
-    "list inputs": handle_list_inputs,
-    "list config": handle_list_config,
-    "configure device": handle_configure_device,
     "get option": handle_get_option,
-    "set option": handle_set_option,
-    "enable plugin": lambda command: handle_plugin_action(command, "enable"),
-    "disable plugin": lambda command: handle_plugin_action(command, "disable"),
-    "status plugin": lambda command: handle_plugin_action(command, "status"),
+    "get view": handle_get_view,
     "install plugin": handle_install_plugin,
+    "list config": handle_list_config,
+    "list inputs": handle_list_inputs,
+    "list outputs": handle_list_outputs,
+    "list views": handle_list_views,
+    "list wsets": handle_list_wsets,
+    "maximize view": handle_maximize_view,
+    "minimize view": handle_minimize_view,
+    "move view": handle_move_view,
     "move view to workspace": handle_move_view_to_workspace,
+    "next workspace": handle_next_workspace,
+    "register binding": handle_register_binding,
+    "resize view": handle_resize_view,
+    "search views": handle_search_views,
+    "set keyboard": handle_set_keyboard,
+    "set option": handle_set_option,
+    "set view alpha": handle_set_view_alpha,
+    "set workspace": handle_set_workspace,
+    "status plugin": lambda command: handle_plugin_action(command, "status"),
+    "update plugins": handle_update_plugins,
 }
 
 
