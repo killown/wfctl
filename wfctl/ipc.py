@@ -408,42 +408,47 @@ def handle_check_abi(command: str) -> None:
 def handle_list_plugins() -> None:
     """
     Handle the 'list plugins' command.
-    Checks ABI compatibility and queries core/plugins['value'] for enabled state.
+    Aggregates metadata and correlates with live ABI/State.
     """
-    import os
-    import re
-    import sys
+    plugin_path_env = os.getenv("WAYFIRE_PLUGIN_PATH", "")
 
-    plugin_path = os.getenv("WAYFIRE_PLUGIN_PATH")
-    if not plugin_path:
-        print("Error: WAYFIRE_PLUGIN_PATH must be set.")
-        sys.exit(1)
-
-    target_plugin_dir = plugin_path.split(":")[0]
+    # Resolve Metadata Directories (Local + System)
+    target_plugin_dir = (
+        plugin_path_env.split(":")[0]
+        if plugin_path_env
+        else os.path.expanduser("~/.local/lib/wayfire")
+    )
     local_metadata_dir = os.path.abspath(
         os.path.join(target_plugin_dir, "../../share/wayfire/metadata")
     )
 
-    if not os.path.isdir(local_metadata_dir):
-        print(f"Error: Metadata directory not found at {local_metadata_dir}")
-        return
+    metadata_dirs = [
+        local_metadata_dir,
+        "/usr/share/wayfire/metadata",
+        "/usr/local/share/wayfire/metadata",
+    ]
 
-    # Correctly retrieve the list of enabled plugins from the 'value' key
-    enabled_plugins_list = []
+    # Get currently enabled plugins from Wayfire
+    enabled_plugins = []
     try:
-        response = sock.get_option_value("core/plugins")
-        if response and "value" in response:
-            enabled_plugins_list = response["value"].split()
+        plugins_data = sock.get_option_value("core/plugins")
+        if isinstance(plugins_data, dict) and "value" in plugins_data:
+            enabled_plugins = plugins_data["value"].split()
+        elif isinstance(plugins_data, str):
+            enabled_plugins = plugins_data.split()
     except Exception:
         pass
 
+    # Map .so filenames to ABI status
     abi_report = {}
-    search_paths = plugin_path.split(":")
+    search_paths = plugin_path_env.split(":") + [
+        "/usr/lib/wayfire",
+        "/usr/local/lib/wayfire",
+    ]
     for path in search_paths:
         path = os.path.abspath(os.path.expanduser(path))
         if not os.path.isdir(path):
             continue
-
         for f in os.listdir(path):
             if f.endswith(".so"):
                 full_path = os.path.join(path, f)
@@ -458,50 +463,69 @@ def handle_list_plugins() -> None:
                 except Exception:
                     continue
 
-    header = f"{'PLUGIN':<22} | {'VER':<8} | {'STATUS':<10} | {'STATE':<10} | {'DESCRIPTION'}"
-    separator = "-" * len(header)
-    print(header)
-    print(separator)
+    # Display Table
+    print(
+        f"{'PLUGIN':<24} | {'VER':<8} | {'STATUS':<8} | {'STATE':<10} | {'DESCRIPTION'}"
+    )
+    print("-" * 105)
 
-    for xml_file in sorted(os.listdir(local_metadata_dir)):
-        if not xml_file.endswith(".xml"):
+    seen_plugins = set()
+    for m_dir in metadata_dirs:
+        if not os.path.isdir(m_dir):
             continue
 
-        xml_path = os.path.join(local_metadata_dir, xml_file)
-        try:
-            with open(xml_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            p_name_match = re.search(r'<plugin name="([^"]+)">', content)
-            desc_match = re.search(r"<_long>(.*?)</_long>", content, re.DOTALL)
-
-            if not p_name_match:
+        for xml_file in sorted(os.listdir(m_dir)):
+            if not xml_file.endswith(".xml"):
                 continue
 
-            p_name = p_name_match.group(1)
-            desc = desc_match.group(1).strip() if desc_match else "No description"
+            xml_path = os.path.join(m_dir, xml_file)
+            try:
+                with open(xml_path, "r", encoding="utf-8") as f:
+                    content = f.read()
 
-            so_name = f"lib{p_name}.so"
-            abi_info = abi_report.get(so_name)
+                p_name_match = re.search(r'<plugin name="([^"]+)">', content)
+                if not p_name_match:
+                    continue
 
-            status = "MISSING"
-            version = "N/A"
-            state = "ENABLED" if p_name in enabled_plugins_list else "DISABLED"
+                p_name = p_name_match.group(1).strip()
+                if p_name in seen_plugins:
+                    continue
+                seen_plugins.add(p_name)
 
-            if abi_info:
-                version = str(abi_info.get("plugin_abi_version", "N/A"))
-                status = "OK" if abi_info.get("compatible") else "OUTDATED"
+                desc_match = re.search(
+                    r"<(?:_|)long>(.*?)</(?:_|)long>", content, re.DOTALL
+                )
+                desc = (
+                    desc_match.group(1).strip().replace("\n", " ")
+                    if desc_match
+                    else "No description"
+                )
 
-            clean_desc = desc.replace("\n", " ").strip()
-            if len(clean_desc) > 50:
-                clean_desc = clean_desc[:72] + "..."
+                so_name = f"lib{p_name}.so"
+                abi_info = abi_report.get(so_name)
 
-            print(
-                f"{p_name:<22} | {version:<8} | {status:<10} | {state:<10} | {clean_desc}"
-            )
+                version = (
+                    str(abi_info.get("plugin_abi_version", "N/A"))
+                    if abi_info
+                    else "N/A"
+                )
 
-        except Exception:
-            continue
+                # Status Logic
+                if not abi_info:
+                    status = "MISSING"
+                else:
+                    status = "OK" if abi_info.get("compatible") else "OUTDATED"
+
+                # State Logic
+                state = "ENABLED" if p_name in enabled_plugins else "DISABLED"
+
+                display_desc = (desc[:60] + "...") if len(desc) > 60 else desc
+                print(
+                    f"{p_name:<24} | {version:<8} | {status:<8} | {state:<10} | {display_desc}"
+                )
+
+            except Exception:
+                continue
 
 
 def handle_get_view(command: str) -> None:
