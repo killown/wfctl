@@ -408,11 +408,16 @@ def handle_check_abi(command: str) -> None:
 def handle_list_plugins() -> None:
     """
     Handle the 'list plugins' command.
-    Aggregates metadata and correlates with live ABI/State.
-    """
-    plugin_path_env = os.getenv("WAYFIRE_PLUGIN_PATH", "")
 
-    # Resolve Metadata Directories (Local + System)
+    Acts as a unified inspector by aggregating metadata and cross-referencing
+    binary ABI compatibility and live compositor state.
+    """
+    import os
+    import re
+
+    plugin_path_env = os.getenv("WAYFIRE_PLUGIN_PATH", "")
+    internal_modules = {"core", "input", "workarounds"}
+
     target_plugin_dir = (
         plugin_path_env.split(":")[0]
         if plugin_path_env
@@ -428,18 +433,16 @@ def handle_list_plugins() -> None:
         "/usr/local/share/wayfire/metadata",
     ]
 
-    # Get currently enabled plugins from Wayfire
-    enabled_plugins = []
+    enabled_plugins = set()
     try:
         plugins_data = sock.get_option_value("core/plugins")
         if isinstance(plugins_data, dict) and "value" in plugins_data:
-            enabled_plugins = plugins_data["value"].split()
-        elif isinstance(plugins_data, str):
-            enabled_plugins = plugins_data.split()
+            enabled_plugins = {
+                p.strip() for p in plugins_data["value"].split() if p.strip()
+            }
     except Exception:
         pass
 
-    # Map .so filenames to ABI status
     abi_report = {}
     search_paths = plugin_path_env.split(":") + [
         "/usr/lib/wayfire",
@@ -463,7 +466,6 @@ def handle_list_plugins() -> None:
                 except Exception:
                     continue
 
-    # Display Table
     print(
         f"{'PLUGIN':<24} | {'VER':<8} | {'STATUS':<8} | {'STATE':<10} | {'DESCRIPTION'}"
     )
@@ -478,9 +480,8 @@ def handle_list_plugins() -> None:
             if not xml_file.endswith(".xml"):
                 continue
 
-            xml_path = os.path.join(m_dir, xml_file)
             try:
-                with open(xml_path, "r", encoding="utf-8") as f:
+                with open(os.path.join(m_dir, xml_file), "r", encoding="utf-8") as f:
                     content = f.read()
 
                 p_name_match = re.search(r'<plugin name="([^"]+)">', content)
@@ -501,25 +502,30 @@ def handle_list_plugins() -> None:
                     else "No description"
                 )
 
-                so_name = f"lib{p_name}.so"
-                abi_info = abi_report.get(so_name)
-
-                version = (
-                    str(abi_info.get("plugin_abi_version", "N/A"))
-                    if abi_info
-                    else "N/A"
-                )
-
-                # Status Logic
-                if not abi_info:
-                    status = "MISSING"
+                if p_name in internal_modules:
+                    version, status = "INTERNAL", "OK"
+                    # Core and Input are usually effectively always enabled
+                    state = (
+                        "ENABLED"
+                        if p_name != "workarounds"
+                        else ("ENABLED" if p_name in enabled_plugins else "DISABLED")
+                    )
                 else:
-                    status = "OK" if abi_info.get("compatible") else "OUTDATED"
+                    abi = abi_report.get(f"lib{p_name}.so")
+                    version = (
+                        str(abi.get("plugin_abi_version", "N/A")) if abi else "N/A"
+                    )
 
-                # State Logic
-                state = "ENABLED" if p_name in enabled_plugins else "DISABLED"
+                    if not abi:
+                        status = "MISSING"
+                    elif abi.get("compatible") is True:
+                        status = "OK"
+                    else:
+                        status = "OUTDATED"
 
-                display_desc = (desc[:60] + "...") if len(desc) > 60 else desc
+                    state = "ENABLED" if p_name in enabled_plugins else "DISABLED"
+
+                display_desc = (desc[:65] + "...") if len(desc) > 65 else desc
                 print(
                     f"{p_name:<24} | {version:<8} | {status:<8} | {state:<10} | {display_desc}"
                 )
