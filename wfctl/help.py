@@ -156,6 +156,13 @@ def usage() -> None:
     )
     status_plugin_parser.add_argument("plugin_name")
 
+    uninstall_plugin_parser = subparsers.add_parser(
+        "uninstall plugin", help="Remove a plugin binary and its metadata."
+    )
+    uninstall_plugin_parser.add_argument(
+        "plugin_name", help="Name of the plugin to uninstall."
+    )
+
     subparsers.add_parser("update plugins", help="Batch update Git-installed plugins.")
 
     if len(sys.argv) == 1:
