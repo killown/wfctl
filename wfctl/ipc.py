@@ -985,6 +985,21 @@ def audit_plugins_abi(search_paths: list[str] | None = None) -> dict:
     return report
 
 
+def handle_get_cursor_position() -> None:
+    """
+    Handle the 'get cursor position' command.
+    Outputs the absolute X and Y coordinates of the mouse cursor.
+    """
+    try:
+        pos = sock.get_cursor_position()
+        if pos and len(pos) == 2:
+            print(f"X: {pos[0]}, Y: {pos[1]}")
+        else:
+            print("Error: Could not retrieve cursor position from compositor.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
 # Define command mapping to corresponding handler functions
 command_map = {
     "audit plugins": audit_plugins_abi,
@@ -996,6 +1011,7 @@ command_map = {
     "disable plugin": lambda command: handle_plugin_action(command, "disable"),
     "enable plugin": lambda command: handle_plugin_action(command, "enable"),
     "fullscreen view": handle_fullscreen_view,
+    "get cursor position": handle_get_cursor_position,
     "get focused output": handle_get_focused_output,
     "get focused view": handle_get_focused_view,
     "get focused workspace": handle_get_focused_workspace,
