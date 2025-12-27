@@ -407,35 +407,45 @@ def handle_check_abi(command: str) -> None:
 
 def handle_list_plugins() -> None:
     """
-    Handle the 'list plugins' command.
+    Handle the 'list plugins' command by aggregating and sorting metadata.
 
-    Acts as a unified inspector by aggregating metadata and cross-referencing
-    binary ABI compatibility and live compositor state.
+    This function performs the following steps:
+    1. Resolves metadata and plugin binary paths.
+    2. Queries the Wayfire IPC for the currently enabled plugins.
+    3. Audits all found .so binaries for ABI compatibility.
+    4. Parses XML metadata for descriptions and titles.
+    5. Filters out internal core modules.
+    6. Sorts the resulting list primarily by state (ENABLED first)
+       and secondarily by name.
+    7. Outputs a formatted table to stdout.
+
+    Returns:
+        None
     """
     import os
     import re
 
-    plugin_path_env = os.getenv("WAYFIRE_PLUGIN_PATH", "")
-    internal_modules = {"core", "input", "workarounds"}
+    plugin_path_env: str = os.getenv("WAYFIRE_PLUGIN_PATH", "")
+    internal_modules: set[str] = {"core", "input", "workarounds"}
 
-    target_plugin_dir = (
+    target_plugin_dir: str = (
         plugin_path_env.split(":")[0]
         if plugin_path_env
         else os.path.expanduser("~/.local/lib/wayfire")
     )
-    local_metadata_dir = os.path.abspath(
+    local_metadata_dir: str = os.path.abspath(
         os.path.join(target_plugin_dir, "../../share/wayfire/metadata")
     )
 
-    metadata_dirs = [
+    metadata_dirs: list[str] = [
         local_metadata_dir,
         "/usr/share/wayfire/metadata",
         "/usr/local/share/wayfire/metadata",
     ]
 
-    enabled_plugins = set()
+    enabled_plugins: set[str] = set()
     try:
-        plugins_data = sock.get_option_value("core/plugins")
+        plugins_data: dict = sock.get_option_value("core/plugins")
         if isinstance(plugins_data, dict) and "value" in plugins_data:
             enabled_plugins = {
                 p.strip() for p in plugins_data["value"].split() if p.strip()
@@ -443,8 +453,8 @@ def handle_list_plugins() -> None:
     except Exception:
         pass
 
-    abi_report = {}
-    search_paths = plugin_path_env.split(":") + [
+    abi_report: dict[str, dict] = {}
+    search_paths: list[str] = plugin_path_env.split(":") + [
         "/usr/lib/wayfire",
         "/usr/local/lib/wayfire",
     ]
@@ -454,9 +464,9 @@ def handle_list_plugins() -> None:
             continue
         for f in os.listdir(path):
             if f.endswith(".so"):
-                full_path = os.path.join(path, f)
+                full_path: str = os.path.join(path, f)
                 try:
-                    res = sock.send_json(
+                    res: dict = sock.send_json(
                         {
                             "method": "wayfire/get-plugin-abi-version",
                             "data": {"path": full_path},
@@ -466,72 +476,84 @@ def handle_list_plugins() -> None:
                 except Exception:
                     continue
 
-    print(
-        f"{'PLUGIN':<24} | {'VER':<8} | {'STATUS':<8} | {'STATE':<10} | {'DESCRIPTION'}"
-    )
-    print("-" * 105)
+    plugin_list: list[dict[str, Any]] = []
+    seen_plugins: set[str] = set()
 
-    seen_plugins = set()
     for m_dir in metadata_dirs:
         if not os.path.isdir(m_dir):
             continue
 
-        for xml_file in sorted(os.listdir(m_dir)):
+        for xml_file in os.listdir(m_dir):
             if not xml_file.endswith(".xml"):
                 continue
 
             try:
                 with open(os.path.join(m_dir, xml_file), "r", encoding="utf-8") as f:
-                    content = f.read()
+                    content: str = f.read()
 
-                p_name_match = re.search(r'<plugin name="([^"]+)">', content)
+                p_name_match: Optional[re.Match] = re.search(
+                    r'<plugin name="([^"]+)">', content
+                )
                 if not p_name_match:
                     continue
 
-                p_name = p_name_match.group(1).strip()
-                if p_name in seen_plugins:
+                p_name: str = p_name_match.group(1).strip()
+
+                if p_name in seen_plugins or p_name in internal_modules:
                     continue
                 seen_plugins.add(p_name)
 
-                desc_match = re.search(
+                desc_match: Optional[re.Match] = re.search(
                     r"<(?:_|)long>(.*?)</(?:_|)long>", content, re.DOTALL
                 )
-                desc = (
+                desc: str = (
                     desc_match.group(1).strip().replace("\n", " ")
                     if desc_match
                     else "No description"
                 )
 
-                if p_name in internal_modules:
-                    version, status = "INTERNAL", "OK"
-                    # Core and Input are usually effectively always enabled
-                    state = (
-                        "ENABLED"
-                        if p_name != "workarounds"
-                        else ("ENABLED" if p_name in enabled_plugins else "DISABLED")
-                    )
-                else:
-                    abi = abi_report.get(f"lib{p_name}.so")
-                    version = (
-                        str(abi.get("plugin_abi_version", "N/A")) if abi else "N/A"
-                    )
+                is_enabled: bool = p_name in enabled_plugins
 
-                    if not abi:
-                        status = "MISSING"
-                    elif abi.get("compatible") is True:
-                        status = "OK"
-                    else:
-                        status = "OUTDATED"
-
-                    state = "ENABLED" if p_name in enabled_plugins else "DISABLED"
-
-                display_desc = (desc[:65] + "...") if len(desc) > 65 else desc
-                print(
-                    f"{p_name:<24} | {version:<8} | {status:<8} | {state:<10} | {display_desc}"
+                abi: Optional[dict] = abi_report.get(f"lib{p_name}.so")
+                version: str = (
+                    str(abi.get("plugin_abi_version", "N/A")) if abi else "N/A"
+                )
+                status: str = (
+                    "OK"
+                    if (abi and abi.get("compatible"))
+                    else ("OUTDATED" if abi else "MISSING")
                 )
 
+                plugin_list.append(
+                    {
+                        "name": p_name,
+                        "version": version,
+                        "status": status,
+                        "state": "ENABLED" if is_enabled else "DISABLED",
+                        "description": desc,
+                        "is_enabled_bool": is_enabled,
+                    }
+                )
             except Exception:
                 continue
+
+    plugin_list.sort(key=lambda x: (not x["is_enabled_bool"], x["name"]))
+
+    print(
+        f"{'PLUGIN':<24} | {'VER':<8} | {'STATUS':<8} | {'STATE':<10} | {'DESCRIPTION'}"
+    )
+    print("-" * 105)
+
+    for p in plugin_list:
+        display_desc: str = (
+            (p["description"][:65] + "...")
+            if len(p["description"]) > 65
+            else p["description"]
+        )
+        print(
+            f"{p['name']:<24} | {p['version']:<8} | {p['status']:<8} | "
+            f"{p['state']:<10} | {display_desc}"
+        )
 
 
 def handle_get_view(command: str) -> None:
