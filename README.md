@@ -23,6 +23,7 @@ pip install -e .
 | **close view**             | Close a specific view by its ID.                     | `wfctl close view 15`                               |
 | **configure device**       | Enable or disable a specific input device.           | `wfctl configure device 12 enable`                  |
 | **create output**          | Create a virtual headless display.                   | `wfctl create output 1920 1080`                     |
+| **destroy output**         | Remove a virtual headless display by its name.       | `wfctl destroy output HEADLESS-1`                   |
 | **disable plugin**         | Deactivate a Wayfire plugin.                         | `wfctl disable plugin wobbly`                       |
 | **enable plugin**          | Activate a Wayfire plugin.                           | `wfctl enable plugin expo`                          |
 | **fullscreen view**        | Toggle or set fullscreen state.                      | `wfctl fullscreen view 7 true`                      |
