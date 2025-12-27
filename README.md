@@ -54,4 +54,5 @@ pip install -e .
 | **set view alpha**         | Set window transparency (0.0 to 1.0).                | `wfctl set view alpha 12 0.8`                       |
 | **set workspace**          | Switch current workspace by index.                   | `wfctl set workspace 2`                             |
 | **status plugin**          | Check if a plugin is currently active.               | `wfctl status plugin alpha`                         |
+| **uninstall plugin**       | Remove a plugin binary, metadata, and record.        | `wfctl uninstall plugin simple-text`                |
 | **update plugins**         | Rebuild all Git-installed plugins.                   | `wfctl update plugins`                              |
