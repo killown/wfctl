@@ -27,6 +27,7 @@ pip install -e .
 | **disable plugin**         | Deactivate a Wayfire plugin.                         | `wfctl disable plugin wobbly`                       |
 | **enable plugin**          | Activate a Wayfire plugin.                           | `wfctl enable plugin expo`                          |
 | **fullscreen view**        | Toggle or set fullscreen state.                      | `wfctl fullscreen view 7 true`                      |
+| **get cursor position**    | Get current mouse coordinates (X, Y).                | `wfctl get cursor position`                         |
 | **get focused output**     | Show details of the active output.                   | `wfctl get focused output`                          |
 | **get focused view**       | Show details of the active window.                   | `wfctl get focused view`                            |
 | **get focused workspace**  | Get current workspace index.                         | `wfctl get focused workspace`                       |
