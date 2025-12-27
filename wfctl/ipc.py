@@ -381,6 +381,106 @@ def handle_install_plugin(command: str) -> None:
         print(f"Installation failed: {e}")
 
 
+def handle_uninstall_plugin() -> None:
+    """
+    Handle the 'uninstall plugin {name}' command.
+
+    Locates and removes the .so binary, .xml metadata, and the installation
+    record JSON from the .local/share/wayfire/installed-plugins/ directory.
+    Prevents accidental removal of core system modules and provides a
+    confirmation prompt before deletion.
+
+    Returns:
+        None
+    """
+    import os
+    import sys
+
+    args: list[str] = sys.argv[1:]
+    if len(args) < 3:
+        print("Error: Usage: wfctl uninstall plugin {plugin_name}")
+        return
+
+    plugin_name: str = args[2]
+    internal_modules: set[str] = {"core", "input", "workarounds", "ipc", "stipc"}
+
+    if plugin_name in internal_modules:
+        print(f"Error: '{plugin_name}' is a core module and cannot be uninstalled.")
+        return
+
+    home: str = os.path.expanduser("~")
+    plugin_path_env: str = os.getenv("WAYFIRE_PLUGIN_PATH", "")
+
+    raw_lib_paths: list[str] = [p for p in plugin_path_env.split(":") if p] + [
+        "/usr/lib/wayfire",
+        "/usr/local/lib/wayfire",
+        os.path.join(home, ".local/lib/wayfire"),
+    ]
+
+    lib_paths: list[str] = list(
+        set(os.path.abspath(p) for p in raw_lib_paths if os.path.isdir(p))
+    )
+
+    raw_meta_paths: list[str] = [
+        "/usr/share/wayfire/metadata",
+        "/usr/local/share/wayfire/metadata",
+        os.path.join(home, ".local/share/wayfire/metadata"),
+    ]
+
+    meta_paths: list[str] = list(
+        set(os.path.abspath(p) for p in raw_meta_paths if os.path.isdir(p))
+    )
+
+    installed_record_dir: str = os.path.join(
+        home, ".local/share/wayfire/installed-plugins"
+    )
+    files_to_remove: list[str] = []
+
+    binary_name: str = f"lib{plugin_name}.so"
+    for lb in lib_paths:
+        full_path: str = os.path.join(lb, binary_name)
+        if os.path.exists(full_path) and full_path not in files_to_remove:
+            files_to_remove.append(full_path)
+
+    xml_name: str = f"{plugin_name}.xml"
+    for mp in meta_paths:
+        full_path: str = os.path.join(mp, xml_name)
+        if os.path.exists(full_path) and full_path not in files_to_remove:
+            files_to_remove.append(full_path)
+
+    record_path: str = os.path.join(installed_record_dir, f"{plugin_name}.json")
+    if os.path.exists(record_path):
+        files_to_remove.append(record_path)
+
+    config_json: str = os.path.expanduser(f"~/.config/wayfire/{plugin_name}.json")
+    if os.path.exists(config_json):
+        files_to_remove.append(config_json)
+
+    if not files_to_remove:
+        print(f"Error: No artifacts found for plugin '{plugin_name}'.")
+        return
+
+    print(f"Found {len(files_to_remove)} artifacts for '{plugin_name}':")
+    for f in files_to_remove:
+        print(f"  [TARGET] {f}")
+
+    confirm: str = input("\nProceed with uninstallation? (y/N): ").lower()
+    if confirm != "y":
+        print("Uninstallation aborted.")
+        return
+
+    for f in files_to_remove:
+        try:
+            os.remove(f)
+            print(f"Successfully removed: {f}")
+        except PermissionError:
+            print(f"Permission denied: {f}. Use sudo if required.")
+        except Exception as e:
+            print(f"Error deleting {f}: {e}")
+
+    print(f"\nUninstallation of '{plugin_name}' complete.")
+
+
 def handle_check_abi(command: str) -> None:
     """
     Handle 'check abi {path}'
@@ -1019,6 +1119,7 @@ command_map = {
     "get option": handle_get_option,
     "get view": handle_get_view,
     "install plugin": handle_install_plugin,
+    "uninstall plugin": handle_uninstall_plugin,
     "list config": handle_list_config,
     "list inputs": handle_list_inputs,
     "list outputs": handle_list_outputs,
