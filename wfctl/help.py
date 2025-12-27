@@ -36,6 +36,12 @@ def usage() -> None:
     conf_dev_parser.add_argument("status", choices=["enable", "disable"])
 
     subparsers.add_parser("create output", help="Create headless display.")
+
+    dest_out_parser = subparsers.add_parser(
+        "destroy output", help="Remove a virtual headless display."
+    )
+    dest_out_parser.add_argument("output_name", help="Name of the headless output.")
+
     subparsers.add_parser("disable plugin", help="Disable a plugin from a given name.")
     subparsers.add_parser("enable plugin", help="Enable a plugin from a given name.")
 
