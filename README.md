@@ -31,7 +31,6 @@ pip install -e .
 | **get focused view**       | Show details of the active window.                   | `wfctl get focused view`                            |
 | **get focused workspace**  | Get current workspace index.                         | `wfctl get focused workspace`                       |
 | **get keyboard**           | List layouts and active layout index.                | `wfctl get keyboard`                                |
-| **get log path**           | Retrieve current stdout redirection path.            | `wfctl get log path`                                |
 | **get option**             | Read a specific configuration value.                 | `wfctl get option core/plugins`                     |
 | **get view**               | Get full JSON info for a specific view ID.           | `wfctl get view 12`                                 |
 | **install plugin**         | Build and install a plugin from Git.                 | `wfctl install plugin https://github.com/user/repo` |

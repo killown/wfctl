@@ -51,15 +51,13 @@ def usage() -> None:
     fullscreen_view_parser.add_argument("view_id", type=int)
     fullscreen_view_parser.add_argument("state", choices=["true", "false"])
 
+    subparsers.add_parser("get cursor position", help="Get current mouse coordinates.")
     subparsers.add_parser("get focused output", help="Details of the active output.")
     subparsers.add_parser("get focused view", help="Details of the active view.")
     subparsers.add_parser(
         "get focused workspace", help="Index of the active workspace."
     )
     subparsers.add_parser("get keyboard", help="List layouts and active index.")
-    subparsers.add_parser(
-        "get log path", help="Retrieve current stdout redirection path."
-    )
 
     get_opt_parser = subparsers.add_parser(
         "get option", help="Get section/option value."
