@@ -842,6 +842,47 @@ def handle_create_output(command: str) -> None:
         print("Error: Usage: create output {width} {height}")
 
 
+def handle_destroy_output(command: str) -> None:
+    """
+    Handle the 'destroy output {output_name}' command.
+
+    Validates the existence of the specified output via IPC before
+    attempting to destroy the headless instance.
+
+    Args:
+        command: The raw command string containing the target output name.
+
+    Returns:
+        None
+    """
+    try:
+        parts: list[str] = command.split()
+        if len(parts) < 3:
+            print("Error: Usage: destroy output {output_name}")
+            return
+
+        output_name: str = parts[2]
+
+        outputs: list[dict] = sock.list_outputs()
+        exists: bool = any(output.get("name") == output_name for output in outputs)
+
+        if not exists:
+            print(f"Error: No output '{output_name}' found, skipping...")
+            return
+
+        result: dict = sock.destroy_headless_output(output_name)
+
+        if result.get("result") == "ok":
+            print(f"Successfully destroyed headless output: {output_name}")
+        else:
+            print(
+                f"Compositor failed to destroy output: {result.get('error', 'Unknown error')}"
+            )
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
 def handle_register_binding(command: str) -> None:
     """
     Handle 'register binding {key_combo} {shell_command}'.
@@ -977,6 +1018,7 @@ command_map = {
     "close view": handle_close_view,
     "configure device": handle_configure_device,
     "create output": handle_create_output,
+    "destroy output": handle_destroy_output,
     "disable plugin": lambda command: handle_plugin_action(command, "disable"),
     "enable plugin": lambda command: handle_plugin_action(command, "enable"),
     "fullscreen view": handle_fullscreen_view,
