@@ -805,7 +805,7 @@ def handle_plugin_action(command: str, action: str) -> None:
         elif action == "disable":
             disable_plugin(plugin_name)
         elif action == "status":
-            print(status_plugin(plugin_name))
+            status_plugin(plugin_name)
     except Exception as e:
         print(f"Error: {e}")
 

@@ -82,12 +82,33 @@ def set_output(output_name, status):
     sock.set_option_values({method: status})
 
 
-def status_plugin(plugin_name):
-    status = plugin_name in sock.get_option_value("core/plugins")["value"].split()
-    if status:
-        print("plugin enabled")
-    else:
-        print("plugin disabled")
+def status_plugin(plugin_name: str) -> bool:
+    """
+    Check if a specific plugin is currently enabled in the compositor.
+
+    Args:
+        plugin_name: The name of the plugin to check.
+
+    Returns:
+        bool: True if the plugin is in the active list, False otherwise.
+    """
+    try:
+        plugins_option: dict = sock.get_option_value("core/plugins")
+        if not plugins_option or "value" not in plugins_option:
+            return False
+
+        active_plugins: list[str] = plugins_option["value"].split()
+        is_enabled: bool = plugin_name in active_plugins
+
+        if is_enabled:
+            print("plugin enabled")
+        else:
+            print("plugin disabled")
+
+        return is_enabled
+    except Exception:
+        print("Cannot check plugin status")
+        return False
 
 
 def find_dicts_with_value(dict_list, value):
