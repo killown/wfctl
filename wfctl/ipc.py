@@ -239,20 +239,21 @@ def _install_from_source(
     """
     Core logic to clone, patch, build, and install a Wayfire plugin.
 
-    This is shared between 'install' and 'update' commands to ensure consistent
-    build environments and patching logic.
+    This handles the full lifecycle from git ingestion to binary deployment,
+    including a destructive patch of the metadata build configuration.
     """
-    build_dir = "build"
+    build_dir: str = "build"
 
     with tempfile.TemporaryDirectory(prefix="wfctl_", dir="/tmp") as tmp_dir:
-        clone_path = os.path.join(tmp_dir, "repo_clone")
+        clone_path: str = os.path.join(tmp_dir, "repo_clone")
         subprocess.run(
             ["git", "clone", "--depth", "1", repo_url, clone_path], check=True
         )
 
-        # Determine which directories to build
-        specific_dir = find_specific_plugin_directory(clone_path, plugin_name)
-        project_dirs = (
+        specific_dir: str | None = find_specific_plugin_directory(
+            clone_path, plugin_name
+        )
+        project_dirs: list[str] = (
             [specific_dir]
             if specific_dir
             else find_wayfire_plugin_directories(clone_path)
@@ -263,32 +264,30 @@ def _install_from_source(
             return
 
         for project_dir in project_dirs:
-            original_dir = os.getcwd()
+            original_dir: str = os.getcwd()
             try:
                 os.chdir(project_dir)
 
                 # --- Patch metadata/meson.build ---
-                metadata_src_dir = os.path.join(project_dir, "metadata")
-                meson_build_file = os.path.join(metadata_src_dir, "meson.build")
+                # We identify the target metadata directory and the build definition
+                metadata_src_dir: str = os.path.join(project_dir, "metadata")
+                meson_build_file: str = os.path.join(metadata_src_dir, "meson.build")
 
-                if os.path.exists(meson_build_file):
-                    with open(meson_build_file, "r") as f:
-                        lines = f.readlines()
-                    lines = [line for line in lines if "install_data" not in line]
-
-                    xml_files = [
+                if os.path.exists(metadata_src_dir):
+                    xml_files: list[str] = [
                         f for f in os.listdir(metadata_src_dir) if f.endswith(".xml")
                     ]
+
                     if xml_files:
-                        xml_file = xml_files[0]
-                        lines.append(
-                            f"install_data('{xml_file}', install_dir: '{local_metadata_dir}')\n"
-                        )
-                        with open(meson_build_file, "w") as f:
-                            f.writelines(lines)
+                        xml_file: str = xml_files[0]
+                        # Destructive overwrite: ignores existing content and applies only our patch.
+                        with open(meson_build_file, "w", encoding="utf-8") as f:
+                            f.write(
+                                f"install_data('{xml_file}', install_dir: '{local_metadata_dir}')\n"
+                            )
 
                 # --- Build and Install ---
-                meson_cmd = [
+                meson_cmd: list[str] = [
                     "meson",
                     "setup",
                     build_dir,
