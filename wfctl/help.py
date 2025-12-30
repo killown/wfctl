@@ -81,6 +81,12 @@ def usage() -> None:
     list_config_parser.add_argument("filter", nargs="?", help="Substring filter.")
 
     subparsers.add_parser("list inputs", help="List all connected input devices.")
+
+    list_options_parser = subparsers.add_parser(
+        "list options", help="List all options, types, and values for a plugin."
+    )
+    list_options_parser.add_argument("plugin_name", help="Name of the plugin.")
+
     subparsers.add_parser("list outputs", help="List all physical and virtual outputs.")
     subparsers.add_parser(
         "list plugins", help="Show all installed plugins and their status."
