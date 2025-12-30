@@ -37,6 +37,7 @@ pip install -e .
 | **install plugin**         | Build and install a plugin from Git.                 | `wfctl install plugin https://github.com/user/repo` |
 | **list config**            | Search/list live configuration options.              | `wfctl list config blur`                            |
 | **list inputs**            | Show all connected input devices.                    | `wfctl list inputs`                                 |
+| **list options**           | List all options, types, and values for a plugin.    | `wfctl list options expo`                           |
 | **list outputs**           | Show all active physical and virtual outputs.        | `wfctl list outputs`                                |
 | **list plugins**           | Show all installed Wayfire plugins and their status. | `wfctl list plugins`                                |
 | **list views**             | Show all open windows and their properties.          | `wfctl list views`                                  |
