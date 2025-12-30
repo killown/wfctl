@@ -779,20 +779,35 @@ def handle_get_option(command: str) -> None:
 
 
 def handle_set_option(command: str) -> None:
-    """Handle the 'set option' command."""
-    options = command.split()[2:]
-    all_options = {}
-    for option in options:
-        try:
-            opt, val = option.split("=")
-            all_options[opt] = val
-        except ValueError:
-            print(f"Error: Invalid format for option '{option}'")
-            return
+    """
+    Handle the 'set option' command by parsing and updating Wayfire configuration.
 
-    for option, value in all_options.items():
-        sock.set_option_values(option)
-        print(f"Option {option} set to {value}")
+    This function parses key-value pairs from the command string and transmits
+    them to the compositor. It supports multiple options in a single call.
+
+    Args:
+        command: The raw command string (e.g., 'set option core/vwidth=4').
+    """
+    parts: list[str] = command.split()[2:]
+    payload: dict[str, str] = {}
+
+    for part in parts:
+        if "=" not in part:
+            print(f"Error: Invalid format for option '{part}'. Expected key=value.")
+            continue
+
+        key, value = part.split("=", 1)
+        payload[key] = value
+
+    if not payload:
+        return
+
+    try:
+        sock.set_option_values(payload)
+        for option, val in payload.items():
+            print(f"Option {option} set to {val}")
+    except Exception as e:
+        print(f"Error: Failed to set options via IPC: {e}")
 
 
 def handle_plugin_action(command: str, action: str) -> None:
