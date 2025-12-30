@@ -842,35 +842,40 @@ def handle_list_options(command: str) -> None:
     render_options_table(plugin_name, options_data)
 
 
-def render_options_table(plugin_name: str, options: List[Dict[str, Any]]) -> None:
+def render_options_table(plugin_name: str, options_data: list[dict]) -> None:
     """
-    Renders the options into a high-density table format.
-    """
-    if not options:
-        print(f"No options found for plugin: {plugin_name}")
-        return
+    Renders a formatted table of plugin options targeting Python 3.13+.
 
+    Args:
+        plugin_name: The name of the Wayfire plugin.
+        options_data: List of dictionaries containing option metadata.
+    """
     headers = ["OPTION", "TYPE", "DEFAULT", "CURRENT", "DESCRIPTION"]
-    col_widths = [20, 20, 20, 20, 45]
+    col_widths = [20, 20, 20, 20, 40]
 
     print(f"\n[ Configuration for Plugin: {plugin_name} ]")
+    header_line = " ".join(f"{h:<{w}}" for h, w in zip(headers, col_widths))
+    print(header_line)
+    print("-" * len(header_line))
 
-    # Header
-    header_fmt = "".join(f"{headers[i]:<{col_widths[i]}}" for i in range(len(headers)))
-    print(header_fmt)
-    print("-" * sum(col_widths))
+    for opt in options_data:
+        name = str(opt.get("name", ""))
+        obj_type = str(opt.get("type", ""))
+        default = str(opt.get("default", ""))
+        description = str(opt.get("description", ""))
 
-    # Rows
-    for opt in options:
-        row = (
-            f"{opt['name']:<{col_widths[0]}}"
-            f"{opt['type']:<{col_widths[1]}}"
-            f"{opt['default']:<{col_widths[2]}}"
-            f"{opt['current']:<{col_widths[3]}}"
-            f"{opt['description']:<{col_widths[4]}}"
+        current_raw = opt.get("current", "")
+        current = (
+            str(current_raw) if isinstance(current_raw, list) else str(current_raw)
         )
-        print(row)
-    print("")
+
+        print(
+            f"{name:<{col_widths[0]}} "
+            f"{obj_type:<{col_widths[1]}} "
+            f"{default:<{col_widths[2]}} "
+            f"{current:<{col_widths[3]}} "
+            f"{description}"
+        )
 
 
 def handle_get_option(command: str) -> None:
