@@ -6,6 +6,7 @@ import subprocess
 import os
 import re
 import tempfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from wayfire import WayfireSocket
@@ -771,6 +772,107 @@ def handle_configure_device(command: str) -> None:
         print(f"Error: {e}")
 
 
+def handle_list_options(command: str) -> None:
+    """
+    Parse Wayfire plugin XML and display options including live and default values.
+
+    This function synchronizes static metadata from the filesystem with the
+    live state of the compositor.
+
+    Args:
+        command: The raw command string, expected format: 'list options <plugin_name>'
+    """
+    parts = command.split()
+    if len(parts) < 3:
+        print("Error: Missing plugin name. Usage: wfctl list options <plugin>")
+        return
+
+    plugin_name = parts[2]
+
+    search_paths = [
+        f"/usr/share/wayfire/metadata/{plugin_name}.xml",
+        f"/usr/local/share/wayfire/metadata/{plugin_name}.xml",
+        os.path.expanduser(f"~/.local/share/wayfire/metadata/{plugin_name}.xml"),
+    ]
+
+    xml_path = next((p for p in search_paths if os.path.exists(p)), None)
+
+    if not xml_path:
+        print(f"Error: Metadata for plugin '{plugin_name}' not found.")
+        return
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+    except ET.ParseError as e:
+        print(f"Error: Failed to parse XML metadata: {e}")
+        return
+
+    plugin = root.find(f".//plugin[@name='{plugin_name}']")
+    if plugin is None:
+        print(f"Error: Plugin definition for '{plugin_name}' not found in {xml_path}")
+        return
+
+    options_data: List[Dict[str, Any]] = []
+    for option in plugin.findall(".//option"):
+        name = option.get("name", "N/A")
+        opt_type = option.get("type", "N/A")
+        short_desc = option.findtext("_short", default="No description")
+        default_val = option.findtext("default", default="")
+
+        full_option_path = f"{plugin_name}/{name}"
+        try:
+            live_data = sock.get_option_value(full_option_path)
+            current_val = (
+                live_data.get("value", "N/A") if isinstance(live_data, dict) else "N/A"
+            )
+        except Exception:
+            current_val = "Error"
+
+        options_data.append(
+            {
+                "name": name,
+                "type": opt_type,
+                "default": default_val,
+                "current": current_val,
+                "description": short_desc,
+            }
+        )
+
+    render_options_table(plugin_name, options_data)
+
+
+def render_options_table(plugin_name: str, options: List[Dict[str, Any]]) -> None:
+    """
+    Renders the options into a high-density table format.
+    """
+    if not options:
+        print(f"No options found for plugin: {plugin_name}")
+        return
+
+    headers = ["OPTION", "TYPE", "DEFAULT", "CURRENT", "DESCRIPTION"]
+    col_widths = [20, 20, 20, 20, 45]
+
+    print(f"\n[ Configuration for Plugin: {plugin_name} ]")
+
+    # Header
+    header_fmt = "".join(f"{headers[i]:<{col_widths[i]}}" for i in range(len(headers)))
+    print(header_fmt)
+    print("-" * sum(col_widths))
+
+    # Rows
+    for opt in options:
+        row = (
+            f"{opt['name']:<{col_widths[0]}}"
+            f"{opt['type']:<{col_widths[1]}}"
+            f"{opt['default']:<{col_widths[2]}}"
+            f"{opt['current']:<{col_widths[3]}}"
+            f"{opt['description']:<{col_widths[4]}}"
+        )
+        print(row)
+    print("")
+
+
 def handle_get_option(command: str) -> None:
     """Handle the 'get option' command."""
     option = command.split()[-1]
@@ -1136,6 +1238,7 @@ command_map = {
     "uninstall plugin": handle_uninstall_plugin,
     "list config": handle_list_config,
     "list inputs": handle_list_inputs,
+    "list options": handle_list_options,
     "list outputs": handle_list_outputs,
     "list plugins": handle_list_plugins,
     "list views": handle_list_views,
